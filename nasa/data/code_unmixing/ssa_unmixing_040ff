@@ -1,0 +1,695 @@
+# Script for unmixing SSA spectra/images
+# Created by: Noel Scudder (Stony Brook University). Last edited (structurally): 6/1/15
+# Run me in the davinci environment: source('ssa_unmixing')
+SCALE=7
+source("unmixing_fxns.dvrc")	# Necessary functions. Must have proper path.
+
+#Inputs:
+data="examples/bishop2013/m.txt"
+datacube=1
+  imgfileprefix="../data_input/040ff_td45_ti04_ps6853_2cuts_ssa"
+n_k_library="n_k_jezeropaper.hdf"
+bb=0		# Correct for blackbody = 1. Probably not necessary.
+nnls=1		# Use the improved non-negative least squares method(=1) over the original method(=0)
+filterz=1	# Boxcar filter the unknown spectrum (1=no filtering,3,5,7,...)
+upslope=0	# Add line (0 to 1) as "fudge" SSA spectrum
+downslope=0	# Add line (1 to 0) as "fudge" SSA spectrum
+normalize=0     # Normalize the slopes out of the final results. Only relevant if upslope=1 and/or
+		# downslope=1
+
+# This script runs the model over all possible [(# grains in 'grainlist') choose 'num_grainspermodel']
+# combos (same grains for the whole library per model) and displays the top 'num_topfits' fits based
+# on 'byconc'.
+# Caveats: (# grains in 'grainlist') >= num_grainspermodel; 'num_topfits' <= total # combos;
+# Total # of spectra = 'num_grainspermodel'*(#minerals in library), which must be < # channels
+# (spectrum length) and is ideally < half that. Keep # grains per model accordingly small.
+grainlist=50//150//400//800	   # Units = microns
+#grainlist=15//40//75//100//140//180//220//260
+
+num_grainspermodel=4
+num_topfits=1
+byconc=0	# =1 chooses the top fits as those where the sum of model.conc is closest to 1.
+		# Set to 0 to choose top fits by lowest rms error. Default is 0.
+
+# Mineral library indices for which to exclude some grainsizes, and the respective grainsizes to be
+# excluded. Exclusion is only applicable if a grainsize could otherwise be used, i.e. included in
+# "grainlist". Make sure to have an array (#//#//#..) of sizes to exclude for every mineral specified.
+exclude_mins={4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,30}
+exclude_sizes={grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist,grainlist}
+
+# Same kind of deal for include
+olv=100//400//700//1000
+clays=5//50//250//400//800
+sulf=35//50//75//100
+anor=700//1000
+pyr=100//400//700//1000
+aug=100//400//700//1000
+oxi=1//5//15
+dust=1//5//15
+
+include_mins={12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,30}
+include_sizes={clays,clays,clays,clays,clays,aug,pyr,pyr,pyr,anor,anor,olv,olv,olv,olv,oxi,dust}
+
+
+
+#************************************************************************************
+#************************************************************************************
+##------------------------------------Automatic------------------------------------##
+
+# Check for combination failure
+if(length(grainlist) < num_grainspermodel) {
+  printf("\nError: Number of values in each combination cannot be greater than the total number of given values. Make sure num_grainspermodel <= length(grainlist) (Here %i is not <= %i). Aborting...\n",num_grainspermodel,length(grainlist))
+  exit()
+}
+
+# Read in library and spectrum. Reformat the spectrum to use the z direction (that's
+# what the library uses) and reverse the library and spectrum if backwards.
+# Spectra already in SSA; will convert library to SSA later.
+# Choice between spectral cube (data and header files) or single ascii-readable spectrum
+library = read(n_k_library)
+if (library.xaxis[1,1,1] > library.xaxis[1,1,length(library.xaxis[1,1,])]) {
+   library.xaxis = reverse_spectrum(library.xaxis)
+   library.imaginary = reverse_spectrum(library.imaginary)
+   library.real = reverse_spectrum(library.real)
+}
+if(datacube==1) {
+  # Variable naming
+  imagehdr=imgfileprefix+".hdr"
+  imagename=imgfileprefix+".img"
+
+  # Load the header text file; search it for information to load the image; load the image
+  hdr=read_lines(imagehdr)
+  eval(grep(hdr,"samples")[,1])
+  eval(grep(hdr,"lines")[,1])
+  eval(grep(hdr,"bands")[,1])
+  interleave=strsplit(grep(hdr,"interleave")[,1],delim=" ")[,3]
+  image=load_raw(filename=imagename,x=samples,y=lines,z=bands,org=interleave,format='lsb_float',header=0)
+
+  # Find the wavelength range from the header
+  wv_ctr=1
+  while(strstr(hdr,"wavelength")[,wv_ctr,]!=1) {
+       wv_ctr+=1
+  }
+  xstr=""
+  for(i=wv_ctr;i<=length(hdr);i+=1) {
+     xstr+=hdr[,i]
+  }
+  xstruct=eval(xstr)
+  dataaxis=create(1,1,length(xstruct),format=float)
+  for(i=1;i<=length(xstruct);i+=1) dataaxis[,,i]=xstruct[i]
+
+  # Make sure wavelengths go from low to high
+  if (dataaxis[1,1,1] > dataaxis[1,1,length(dataaxis[1,1,])]) {
+     dataaxis = reverse_spectrum(dataaxis)
+     image = reverse_spectrum(image)
+  }
+
+  # Make sure the library wavelength range is within the image wavelength range,
+  # and trim as necessary
+  if((min(dataaxis)>=max(library.xaxis)) || (max(dataaxis)<=min(library.xaxis))) {
+    printf("\nerror: Image/spectra xaxis and n/k library xaxis do not overlap. Unmixing aborted\n")
+    exit()
+  }
+ # xslow=1
+ # if(min(dataaxis)>min(library.xaxis)) {
+ #   for(i=1;i<=length(library.xaxis)-1;i+=1) {
+ #      if((min(dataaxis)>=library.xaxis[,,i]) != (min(dataaxis)>=library.xaxis[,,i+1])) xslow=i+1
+ #   }
+ # }
+ # xshigh=length(library.xaxis)
+ # if(max(dataaxis)<max(library.xaxis)) {
+ #   for(i=1;i<=length(library.xaxis)-1;i+=1) {
+ #      if((max(dataaxis)>=library.xaxis[,,i]) != (max(dataaxis)>=library.xaxis[,,i+1])) xshigh=i
+ #   }
+ # }
+ # printf("\n\n")
+ # library.xaxis=library.xaxis[,,xslow:xshigh]
+ # library.real=library.real[,,xslow:xshigh]
+ # library.imaginary=library.imaginary[,,xslow:xshigh]
+
+  # Resample image to optical constant library data
+ # mixedspec=resample(image,dataaxis,library.xaxis)
+  
+  xslow=1
+  if(min(library.xaxis)>min(dataaxis)) {
+    for(i=1;i<=length(dataaxis)-1;i+=1) {
+       if((min(dataaxis)>=library.xaxis[,,i]) != (min(library.xaxis)>=dataaxis[,,i+1])) xslow=i+1
+    }
+  }
+  xshigh=length(dataaxis)
+  if(max(library.xaxis)<max(dataaxis)) {
+    for(i=1;i<=length(dataaxis)-1;i+=1) {
+       if((max(library.xaxis)>=dataaxis[,,i]) != (max(library.xaxis)>=dataaxis[,,i+1])) xshigh=i
+    }
+  }
+  printf("\n\n")
+  dataaxis=dataaxis[,,xslow:xshigh]
+  image=image[,,xslow:xshigh]
+  
+  # Create mixedspec structure
+  mixedspec=struct()
+  mixedspec.data=image
+  mixedspec.xaxis=dataaxis
+
+  # Resample library to image 
+  libreal=resample(library.real,library.xaxis,dataaxis)
+  libim=resample(library.imaginary,library.xaxis,dataaxis)
+
+  # And put the library back together
+  library.xaxis=dataaxis
+  library.real=libreal.data
+  library.imaginary=libim.data
+
+  # Use this to choose what part of the image you want to unmix (replace x1:x2,y1:y2)
+  mixedspec.data=mixedspec.data[x1:x2,y1:y2,]	
+
+  # Remove potentially bad edges
+  #if(samples>3 && lines>3) mixedspec.data=mixedspec.data[2:samples-1,2:lines-1,]
+
+} else {
+  # Read in single spectrum + axis
+  dataobject = ascii(data,format='float')
+  if (length(dataobject[1,,1]) > length(dataobject[1,1,])) {
+     dataobject = resize(dataobject,2,length(dataobject[1,1,]),length(dataobject[1,,1]))
+  }
+
+  # Make sure wavelengths go from low to high
+  if (dataobject[1,1,1] > dataobject[1,1,length(dataobject[1,,])]) {
+     dataobject = reverse_spectrum(dataobject)
+  }
+
+  # Make sure the library wavelength range is within the spectrum's wavelength range,
+  # and trim as necessary
+  if((min(dataobject[1,,])>=max(library.xaxis)) || (max(dataobject[1,,])<=min(library.xaxis))) {
+    printf("\nerror: Spectrum xaxis and n/k library xaxis do not overlap. Unmixing aborted\n")
+    exit()
+  }
+  xslow=1
+  if(min(dataobject[1,,])>min(library.xaxis)) {
+    for(i=1;i<=length(library.xaxis)-1;i+=1) {
+       if((min(dataobject[1,,])>=library.xaxis[,,i]) != (min(dataobject[1,,])>=library.xaxis[,,i+1])) xslow=i+1
+    }
+  }
+  xshigh=length(library.xaxis)
+  if(max(dataobject[1,,])<max(library.xaxis)) {
+    for(i=1;i<=length(library.xaxis)-1;i+=1) {
+       if((max(dataobject[1,,])>=library.xaxis[,,i]) != (max(dataobject[1,,])>=library.xaxis[,,i+1])) xshigh=i
+    }
+  }
+  library.xaxis=library.xaxis[,,xslow:xshigh]
+  library.real=library.real[,,xslow:xshigh]
+  library.imaginary=library.imaginary[,,xslow:xshigh]
+
+  # Resample spectrum to optical constant library data
+  mixedspec=resample(dataobject[2,,],dataobject[1,,],library.xaxis)
+}
+
+
+# Get all possible combinations of grains in grainlist as an array.
+# Each combination result listed down the y-axis and each grain element listed across the x-axis, e.g.
+# a grainlist of { 5//6//7 choose 2 } would give a 2x3x1 array:
+# 5	     6
+# 5	     7
+# 6	     7
+# !!Requires unmixing_fxns.dvrc loaded
+filename="grainlist_combinations_list000.txt"
+combine(grainlist,num_grainspermodel,filename,force=1)
+graincombos=ascii(filename, format=type(grainlist))
+
+# Check to see if topfitlib size is appropriate
+if(length(graincombos[1,,]) < num_topfits) {
+  printf("\nError: Not enough combinations to fill the size of the topfitlib library requested. Make sure that num_topfits <= [length(grainlist) choose num_grainspermodel] (Here %i is not <= %i). Aborting...\n", num_topfits, length(graincombos[1,,]))
+  exit()
+}
+
+# Preserve original library; its copy will be used throughout the script instead. (Only useful if
+# running in interactive mode).
+minlib=library
+
+# Find if we are excluding or including grain sizes for some minerals and print it
+if(length(exclude_mins)>0 && length(exclude_mins)<=length(exclude_sizes)) do_exclude=1
+else {
+  do_exclude=0
+  printf("Not excluding grainsizes for any minerals\n")
+}
+if(length(include_mins)>0 && length(include_mins)<=length(include_sizes)) do_include=1
+else {
+  do_include=0
+  printf("Not including extra grainsizes for any minerals\n")
+}
+
+# Init the struct we will hold our best fits in, and also our rms list and model conc sum.
+topfitlib={}
+for(i=1;i<=num_topfits;i+=1) {
+   eval(sprintf("Model%i",i)+"={model={},minlib={},minlib_noie={},graincombo={},to_be_excl={},rms=(random()+1.0)*10^4,modelconc_param=100.0}")
+   add_struct(topfitlib,eval(sprintf("Model%i",i)))
+}
+
+# FIRST MAIN LOOP. THIS LOOP IS THE MAIN UNMIXING PART OF THE SCRIPT.
+# Iterate our fitting model over all our combinations. We want to make it so that the combinations
+# that yield the best model rms values get rms/grouped concentrations listed, and also get plotted.
+# !!Requires unmixing_fxns.dvrc loaded
+#printf("%s\n",syscall("date")[,1])
+t1=time(0)
+if(datacube==0) {
+  printf("\n%i spectrum to be unmixed, with %i grain combinations\n",length(mixedspec.data[,,1]),length(graincombos[1,,1]))
+} else {
+  printf("\n%i spectra in data cube to be unmixed, with %i total grain combinations\n",length(mixedspec.data[,,1]),length(graincombos[1,,1]))
+}
+printf("Wavelength range: %2.5f to %2.5f microns\n", min(library.xaxis),max(library.xaxis))
+
+for(ii=1;ii<=length(graincombos[1,,1]);ii+=1) {
+   minlib.data = create(length(graincombos[,1,1])*length(library.real[,1,1]),1,length(library.real[1,1,]),format=float)
+   minlib.label = text(length(graincombos[,1,1])*length(library.real[,1,1]))
+   minlib.group = text(length(graincombos[,1,1])*length(library.real[,1,1]))
+
+   # Init minlib. No exclusions yet. Convert n/k to SSA.
+   for(jj=1;jj<=length(library.real[,1,1]);jj+=1) {
+      for(kk=length(graincombos[,1,1])-1;kk>=0;kk-=1) {
+         minlib.data[length(graincombos[,1,1])*jj-kk,1,] = make_ssa(library.real[jj,,],library.imaginary[jj,,],library.xaxis,graincombos[length(graincombos[,1,1])-kk,ii,1],library.label[,jj])
+         minlib.label[,length(graincombos[,1,1])*jj-kk] = library.label[,jj]+" "+graincombos[length(graincombos[,1,1])-kk,ii,1]
+         minlib.group[,length(graincombos[,1,1])*jj-kk] = library.group[,jj]
+      }
+   }
+
+   # Create slope parameters, add them to endmember library (.data, .label, and .group).
+   if(upslope==1 || downslope==1) {
+     upspect = create(1,1,length(minlib.xaxis),format=float)
+     upspect = upspect/max(upspect)
+     downspect = reverse_spectrum(upspect)
+     if(upslope==1) {
+       minlib.data = cat(minlib.data,upspect,axis=x)
+       minlib.label = cat(minlib.label,"UPSLOPE",axis=y)
+       minlib.group = cat(minlib.group,"PARAMETER",axis=y)
+     }
+     if(downslope==1) {
+       minlib.data = cat(minlib.data,downspect,axis=x)
+       minlib.label = cat(minlib.label,"DOWNSLOPE",axis=y)
+       minlib.group = cat(minlib.group,"PARAMETER",axis=y)
+     }
+   }
+   numslopes=((downslope==1)+(upslope==1))
+
+   # Perform grainsize exclusions for specified minerals if we are excluding. Excludes by rewriting
+   # library without the excluded spectra and their respective labels (.group, .label, .data).
+   to_be_excl={}
+   minlib_noie=minlib
+   if(do_exclude==1) {
+     for(i=1;i<=length(minlib.label);i+=1) {
+        for(q=1;q<=length(exclude_mins);q+=1) {
+           for(v=length(graincombos[,1,1])-1;v>=0;v-=1) {
+              if(exclude_mins[q]*length(graincombos[,1,1])-v==i) {
+                for(r=1;r<=length(exclude_sizes[q]);r+=1) {
+                   if(exclude_sizes[q][r,1,1]==graincombos[length(graincombos[,1,1])-v,ii,1]) {
+                     to_be_excl+={i}
+     }}}}}}
+     modlib=minlib
+     modlib.group=text(length(minlib.group)-length(to_be_excl))
+     modlib.label=text(length(minlib.group)-length(to_be_excl))
+     modlib.data=create(length(minlib.group)-length(to_be_excl),1,length(minlib.data[1,1,]),format=float)
+     excl_ctr=1
+     for(i=1;i<=length(minlib.label);i+=1) {
+        for(j=1;j<=length(to_be_excl);j+=1) {
+           if(i==to_be_excl[j]) {
+             excl_flag=1
+             break;
+           } else excl_flag = 0
+        }
+        if(excl_flag==1) continue;
+        modlib.group[,excl_ctr]=minlib.group[,i]
+        modlib.label[,excl_ctr]=minlib.label[,i]
+        modlib.data[excl_ctr,1,]=minlib.data[i,1,]
+        excl_ctr+=1
+     }
+     minlib=modlib
+   }
+
+   # Include custom grainsizes for specific minerals. Includes by tacking on extra data and labels
+   # to the end of the library (.group, .label, .data).
+   if(do_include==1) {
+     for(i=1;i<=length(library.real[,1,1]);i+=1) {
+        for(j=1;j<=length(include_mins);j+=1) {
+           if(i==include_mins[j]) {
+             for(k=1;k<=length(include_sizes[j]);k+=1) {
+                minlib.data=cat(minlib.data,make_ssa(library.real[i,,],library.imaginary[i,,],library.xaxis,include_sizes[j][k,1,1],library.label[,i]),axis=x)
+                minlib.label=cat(minlib.label,library.label[,i]+" "+include_sizes[j][k,1,1],axis=y)
+                minlib.group=cat(minlib.group,library.group[,i],axis=y)
+   }}}}}
+
+   # Smooth spectrum (boxcar)
+   currentmixedspec=mixedspec
+   currentmixedspec.data=filterz(currentmixedspec.data,filterz)
+
+   # Run sma! Written by people who know what they're doing.
+   if(datacube==1) printf("\nRunning model over spectral cube.. this could take a while\n")
+   model=sma(currentmixedspec,minlib,wave1=1,wave2=length(currentmixedspec.xaxis),band=1,bb=bb,group=1,nn=nnls,noerr=1,sort=0)
+
+   #Update top fit library if applicable, sorted by either rms or closeness of sum of model.conc to 1.
+   # Sorted by model.conc sum (avg'd in case of spectral cubes)
+   if(byconc==1) {
+     for(j=1;j<=num_topfits;j+=1) {
+        if(abs(avg(sum(model.conc,axis=z))-1.0) < abs(topfitlib[j].modelconc_param-1.0)) {
+          if(j == num_topfits) {
+            topfitlib[j]={model=model,minlib=minlib,minlib_noie=minlib_noie,graincombo=graincombos[,ii,],to_be_excl=to_be_excl,rms=avg(model.rms),modelconc_param=avg(sum(model.conc,axis=z))}
+          } else {
+            topfitlib[j+1:num_topfits]=topfitlib[j:num_topfits-1]
+            topfitlib[j]={model=model,minlib=minlib,minlib_noie=minlib_noie,graincombo=graincombos[,ii,],to_be_excl=to_be_excl,rms=avg(model.rms),modelconc_param=avg(sum(model.conc,axis=z))}
+          }
+          break;
+        }
+     }
+   } else {
+   # Sorted by increasing rms
+     for(j=1;j<=num_topfits;j+=1) {
+        if(avg(model.rms) < topfitlib[j].rms) {
+          if(j == num_topfits) {
+            topfitlib[j]={model=model,minlib=minlib,minlib_noie=minlib_noie,graincombo=graincombos[,ii,],to_be_excl=to_be_excl,rms=avg(model.rms)}
+          } else {
+            topfitlib[j+1:num_topfits]=topfitlib[j:num_topfits-1]
+            topfitlib[j]={model=model,minlib=minlib,minlib_noie=minlib_noie,graincombo=graincombos[,ii,],to_be_excl=to_be_excl,rms=avg(model.rms)}
+          }
+          break;
+        }
+     }
+   }
+}
+#printf("%s\n",syscall("date")[,1])
+
+t2=time(0);
+
+printf("\n-----------------Output-----------------\n")
+printf("%i spectra unmixed in %f seconds (%i spectra x %i grain size combinations, %fs per)\n", length(mixedspec.data[,,1])*length(graincombos[1,,1]),t2-t1,length(mixedspec.data[,,1]),length(graincombos[1,,1]),(t2-t1)/(length(mixedspec.data[,,1])*length(graincombos[1,,1])))
+
+# SECOND MAIN LOOP. THIS LOOP CONSISTS OF DATA SORTING, APPROPRIATE MODIFICATION FOR ANALYSIS,
+# AND INITIAL PLOTTING/MAPPING, ONE TOP FIT MODEL AT A TIME.
+# Prepares resulting model(s) from the previous loop for plotting, then plots them at the end of
+# the loop. Plotting spectra if individual spectra, or abundance mapping if image (spectral cube).
+# Cube: For sorting, avgs conc over all pixels, allowing the same dimensions as 1 spectrum.
+# [Note that the avging won't modify the data if we are dealing with individual spectra.]
+for(ii=1;ii<=length(topfitlib);ii+=1) {
+   minlib=topfitlib[ii].minlib
+   model=topfitlib[ii].model
+   minlib_noie=topfitlib[ii].minlib_noie
+   to_be_excl=topfitlib[ii].to_be_excl
+   graincombo=topfitlib[ii].graincombo
+
+   # SORTING/MODIFICATION
+   # These averages are used to sort all the data identically if we are doing a spectral cube.
+   # This passes individual spectra unharmed.
+   avg_conc=type(avg(model.conc,axis=xy),format=float)
+   avg_groupconc=type(avg(model.grouped.grouped_conc,axis=xy),format=float)
+   model.normconc=type(100.0*model.conc/sum(model.conc,axis=z),format=float)
+
+   # Here we multiply each spectrum from our SSA library by its derived coefficient to
+   # get the linear components of the model spectrum. Less meaningful for a data cube,
+   # as it yields a single average spectrum. This is used for sorting.
+   modelcomps = minlib.data
+   for(i=1;i<=length(avg_conc[1,1,]);i+=1) {
+      modelcomps[i,1,] = avg_conc[,,i]*minlib.data[i,1,]
+   }
+
+   # Here we create a new list of labels, concentration, and library spectra, sorted by
+   # descending concentration.
+   numbering = create(1,1,length(avg_conc[1,1,]),format='float')+1.0
+   newconc=cat(avg_conc,numbering,axis=x)
+   topw=sort(newconc,by=avg_conc,descend=1)
+   resize(topw,2,length(avg_conc[1,1,]),1)
+   sortedlabels = minlib.label
+   sortedcomps = modelcomps
+   sortedconc = model.conc
+   for(i=1;i<=length(topw[2,,1]);i+=1) {
+      for(j=1;j<=length(topw[2,,1]);j+=1) {
+         if(int(topw[2,j,1]) == i) {
+           sortedlabels[,j] = minlib.label[,i]
+           sortedcomps[j,,] = modelcomps[i,,]
+           sortedconc[,,j] = model.conc[,,i]
+         }
+      }
+   }
+
+   # Do the same thing for grouped, but we dont have grouped spectra and wont plot them, so
+   # only do labels and concentration.
+   groupnum = create(1,1,length(avg_groupconc[1,1,]),format='float')+1.0
+   newgroupconc=cat(avg_groupconc,groupnum,axis=x)
+   topgroupw=sort(newgroupconc,by=avg_groupconc,descend=1)
+   resize(topgroupw,2,length(avg_groupconc[1,1,]),1)
+   sortedgrouplabels = model.grouped.grouped_labels
+   sortedgroupconc = model.grouped.grouped_conc
+   for(i=1;i<=length(topgroupw[2,,1]);i+=1) {
+      for(j=1;j<=length(topgroupw[2,,1]);j+=1) {
+         if(int(topgroupw[2,j,1]) == i) {
+           sortedgrouplabels[,j] = model.grouped.grouped_labels[,i]
+           sortedgroupconc[,,j] = model.grouped.grouped_conc[,,i]
+         }
+      }
+   }
+
+   # Normalize concentrations to 100 so we can print them as part of the plot labels.
+   # Mapping them for cubes looks different unnormalized vs normalized, and additionally if the slopes
+   # have been used and set to be normalized out of the result, that will also change the look of
+   # the map, so we map unnormalized but print normalized to 100.
+   # Note: for cubes we avg AND normalize (order matters): we avg first, then normalize.
+   avgsortedconc = type(avg(sortedconc,axis=xy),format=float)
+   avgsortedconc = 100.0*avgsortedconc/sum(avgsortedconc,axis=z)
+   sortedconc_nonorm = sortedconc
+   sortedconc = type(100.0*sortedconc/sum(sortedconc,axis=z),format=float)
+
+   # Normalize group concentrations so we can print them at output (and map them if cube).
+   avgsortedgroupconc = type(avg(sortedgroupconc,axis=xy),format=float)
+   avgsortedgroupconc = 100.0*avgsortedgroupconc/sum(avgsortedgroupconc,axis=z)
+   sortedgroupconc_nonorm = sortedgroupconc
+   sortedgroupconc = type(100.0*sortedgroupconc/sum(sortedgroupconc,axis=z),format=float)
+
+   # Normalize out UPSLOPE/DOWNSLOPE parameters if requested and applicable.
+   # Removed from labels, concentrations, and linear components.
+   if(normalize==1) {
+     if(numslopes==0) {
+       printf("\nNo slopes to normalize out\n")
+     } else {
+       # Individual minerals
+       nssortedlabels=text(length(sortedlabels)-numslopes)
+       nssortedconc=create(1,1,length(avgsortedconc[1,1,])-numslopes,format='float')
+       nssortedcomps=create(length(sortedcomps[,1,1])-numslopes,1,length(sortedcomps[1,1,]),format='float')
+       labelctr=1
+       dsconc=0
+       usconc=0
+       for(i=1;i<=length(sortedlabels);i+=1) {
+          if(sortedlabels[,i]=="UPSLOPE") {
+	    usconc=avgsortedconc[,,i]
+            continue;
+          }
+          if(sortedlabels[,i]=="DOWNSLOPE") {
+	    dsconc=avgsortedconc[,,i]
+            continue;
+          }
+          nssortedlabels[,labelctr]=sortedlabels[,i]
+          nssortedconc[,,labelctr]=avgsortedconc[,,i]
+          nssortedcomps[labelctr,,]=sortedcomps[i,,]
+          labelctr+=1
+       }
+       nssortedconc=type(100.0*nssortedconc/sum(nssortedconc,axis=z),format=float)
+
+       # Grouped minerals
+       nssortedgrouplabels=text(length(sortedgrouplabels)-1)
+       nssortedgroupconc=create(1,1,length(avgsortedgroupconc[1,1,])-1,format='double')
+       glabelctr=1
+       for(i=1;i<=length(sortedgrouplabels);i+=1) {
+          if(sortedgrouplabels[,i]=="PARAMETER") continue;
+          nssortedgrouplabels[,glabelctr]=sortedgrouplabels[,i]
+          nssortedgroupconc[,,glabelctr]=avgsortedgroupconc[,,i]
+          glabelctr+=1
+       }
+       nssortedgroupconc=type(100.0*nssortedgroupconc/sum(nssortedgroupconc,axis=z),format=float)
+     }
+   }
+
+   # PRINTING
+   # Begin printing excluded/included minerals/grain sizes.
+   printf("\n-Grain Sizes:\n")
+   for(i=1;i<=length(graincombo);i+=1) {
+      if(i==length(graincombo)) printf(" %i\n",graincombo[i,,])
+      else printf(" %i,",graincombo[i,,])
+   }
+   printf("\n")
+
+   # Print excluded minerals/grains (if any) in a clear manner.
+   if(do_exclude==0) {
+     if(length(exclude_mins)>length(exclude_sizes)) {
+       printf("No grains excluded -- %i minerals to exclude grains from, for which we require %i grain sets (%i given).\n",length(exclude_mins),length(exclude_mins),length(exclude_sizes))
+     }
+     if(length(exclude_mins)==0) printf("No grains excluded -- none specified.\n")
+   } else {
+       printf("-Minerals/grains excluded:\n")
+       for(i=1;i<=length(to_be_excl);i+=1) {
+          if(i==1) {
+            printf(" %s", minlib_noie.label[,to_be_excl[i]])
+            if(i==length(to_be_excl)) printf("\n")
+            continue;
+          }
+          if(strsplit(minlib_noie.label[,to_be_excl[i]],delim=" ")[,1]!=strsplit(minlib_noie.label[,to_be_excl[i-1]],delim=" ")[,1]) {
+            printf("\n %s", minlib_noie.label[,to_be_excl[i]])
+          } else {
+            printf(", %s", strsplit(minlib_noie.label[,to_be_excl[i]],delim=" ")[,length(strsplit(minlib_noie.label[,to_be_excl[i]],delim=" "))])
+          }
+          if(i==length(to_be_excl)) printf("\n")
+       }
+   }
+   printf("\n")
+
+   # Print included minerals/grains (if any) in a clear manner.
+   if(do_include==0) {
+     if(length(include_mins)>length(include_sizes)) {
+       printf("No extra grains included -- %i minerals to include extra grains for, for which we require %i grain sets (%i given).\n",length(include_mins),length(include_mins),length(include_sizes))
+     }
+     if(length(include_mins)==0) printf("No extra grains included -- none specified.\n")
+   } else {
+       num_incl=0
+       for(i=1;i<=length(include_mins);i+=1) num_incl+=length(include_sizes[i])
+       printf("-Minerals/grains included:\n")
+       for(i=length(minlib.label)-num_incl+1;i<=length(minlib.label);i+=1) {
+          if(i==length(minlib.label)-num_incl+1) {
+            printf(" %s", minlib.label[,i])
+            if(i==length(minlib.label)) printf("\n")
+            continue;
+          }
+          if(strsplit(minlib.label[,i],delim=" ")[,1]!=strsplit(minlib.label[,i-1],delim=" ")[,1]) {
+            printf("\n %s", minlib.label[,i])
+          } else {
+            printf(", %s", strsplit(minlib.label[,i],delim=" ")[,length(strsplit(minlib.label[,i],delim=" "))])
+          }
+          if(i==length(minlib.label)) printf("\n")
+       }
+   }
+   printf("\n")
+            
+   # Print rms and group concentrations, accounting for data cubes and/or slope normalizations.
+   # Also add concentrations to various mineral/group labels.
+   if(datacube==1) {
+     printf("\nModel %i avg rms: %1.8f\n",ii,avg(model.rms))
+     printf("-Avg. Grouped Concentrations-\n")
+   } else {
+     printf("\nModel %i rms: %1.8f\n",ii,model.rms)
+     printf("-Grouped Concentrations-\n")
+   }
+
+   for(i=1;i<=length(sortedgroupconc[1,1,]);i+=1) {
+      sortedgrouplabels[,i] += sprintf(" %2.1f%%", avgsortedgroupconc[1,1,i])
+   }
+   for(i=1;i<=length(sortedconc[1,1,]);i+=1) {
+      sortedlabels[,i] += sprintf(" %2.1f%%", avgsortedconc[1,1,i])
+      if(sortedconc[1,1,i]!=0) nonzero=i
+   }
+   if(normalize==1 && numslopes!=0) {
+     for(i=1;i<=length(nssortedgroupconc[1,1,]);i+=1) {
+        nssortedgrouplabels[,i] += sprintf(" %2.1f%%", nssortedgroupconc[1,1,i])
+        printf("%s\n",nssortedgrouplabels[,i])
+     }
+     if(upslope==1 && downslope==1) printf("(slopes normalized out: %2.1f%% Upslope, %2.1f%% Downslope)\n",usconc,dsconc)
+     if(upslope==1 && downslope!=1) printf("(slopes normalized out: %2.1f%% Upslope, no Downslope used)\n",usconc)
+     if(upslope!=1 && downslope==1) printf("(slopes normalized out: %2.1f%% Downslope, no Upslope used)\n",dsconc)
+     for(i=1;i<=length(nssortedconc[1,1,]);i+=1) {
+        nssortedlabels[,i] += sprintf(" %2.1f%%", nssortedconc[1,1,i])
+        if(nssortedconc[1,1,i]!=0) nonzero=i
+     }
+   } else for(i=1;i<=length(sortedgroupconc[1,1,]);i+=1) printf("%s\n",sortedgrouplabels[,i])
+
+   # PLOTTING
+   # Plot original spectrum, modeled spectrum, and its components. For now, we pause instead of plotting
+   # to a file or otherwise saving. If cube, plot an rgb map of the top 3 highest avg grouped
+   # concentrations instead, not including the "fudge" slopes.
+   if(datacube==1) {
+     rgb_comp={{},{}}
+     if(normalize==1 && numslopes!=0) rgb_labels=nssortedgrouplabels
+     else rgb_labels=sortedgrouplabels
+     for(i=1;i<=length(rgb_labels);i+=1) {
+        if(rgb_labels[:9,i]=="PARAMETER") continue;
+        if(length(rgb_comp[1]) >= 3) break;
+        rgb_comp[1]+={i}
+        rgb_comp[2]+={rgb_labels[,i]}
+     }
+     rgb_map=cat(sortedgroupconc_nonorm[,,rgb_comp[1][1]],sortedgroupconc_nonorm[,,rgb_comp[1][2]],axis=z)
+     rgb_map=cat(rgb_map,sortedgroupconc_nonorm[,,rgb_comp[1][3]],axis=z)
+     display(sstretch(rgb_map,ignore=0,variance=60))
+     printf("\nDisplaying r: (#%i) %s\n           g: (#%i) %s\n           b: (#%i) %s\n",rgb_comp[1][1],rgb_comp[2][1],rgb_comp[1][2],rgb_comp[2][2],rgb_comp[1][3],rgb_comp[2][3])
+     if(normalize==1 && numslopes!=0) printf("           (slope(s) normalized out)\n")
+     if(ii!=length(topfitlib)) {
+       printf("\n Hit enter for next best fit model..\n")
+       pause()
+     }
+   } else {
+     if(normalize==1 && numslopes!=0) {
+       pplot({model.measured,model.modeled,nssortedcomps[:nonzero,,]},{"Data","Modeled",nssortedlabels[,:nonzero]},xaxis=minlib.xaxis,key="outside top Left",ylabel="SSA",xlabel="Wavelength (microns)",plot_title="",x1=min(minlib.xaxis)-0.02,x2=max(minlib.xaxis)+0.02,y1=min(model.measured)-0.01,y2=max(model.measured)+0.01)
+       if(ii!=length(topfitlib)) {
+         printf("\n Hit enter for next best fit model..\n")
+         pause()
+       }
+     } else {
+       pplot({model.measured,model.modeled,sortedcomps[:nonzero,,]},{"Data","Modeled",sortedlabels[,:nonzero]},xaxis=minlib.xaxis,key="outside top Left",ylabel="SSA",xlabel="Wavelength (microns)",plot_title="",x1=min(minlib.xaxis)-0.02,x2=max(minlib.xaxis)+0.02,y1=min(model.measured)-0.01,y2=max(model.measured)+0.01)
+       if(ii!=length(topfitlib)) {
+         printf("\n Hit enter for next best fit model..\n")
+         pause()
+       }
+     }
+   }
+   printf("---------------------------------------------------\n")
+}
+
+# At this point we are done with printing/plotting/mapping each individual model. If we are using a single
+# spectrum, we additionally plot together and compare the top models and original spectrum.
+# Pulls models out of structures to more easily plot them together, gets grain combinations and rms
+# as labels to put in the plot.
+# (The first part doesn't need a loop--just a temporary cosmetic fix so we dont print the
+# initialization of the arrays.)
+if(datacube==0 && length(topfitlib)>1) {
+for(i=1;i<=1;i+=1) {
+mgrainlabels=text(num_topfits)
+topfitmodels=create(num_topfits,1,length(topfitlib[1].model.modeled[1,1,]),format=float)
+}
+
+for(ii=1;ii<=num_topfits;ii+=1) {
+   mgrainlabels[,ii]+=sprintf("Mod. %i: rms=%1.4e; Gr.= ",ii, topfitlib[ii].rms)
+   topfitmodels[ii,,]=topfitlib[ii].model.modeled[1,1,]
+   for(jj=1;jj<=length(topfitlib[1].graincombo);jj+=1) {
+      mgrainlabels[,ii]+=topfitlib[ii].graincombo[jj]
+      if(jj!=length(topfitlib[1].graincombo)) mgrainlabels[,ii]+=", "
+      else mgrainlabels[,ii]+="."
+   }
+}
+
+pplot({model.measured,topfitmodels[1:,,]},{"Data",mgrainlabels[,1:]},xaxis=minlib.xaxis,key="bottom right",ylabel="SSA",xlabel="wavelength (microns)",plot_title="",x1=min(minlib.xaxis)-0.02,x2=max(minlib.xaxis)+0.02,y1=min(model.measured)-0.01,y2=max(model.measured)+0.01,lw=1)
+}
+
+#Create extras structure to house all of the extra variables related to concentration and labels.
+extras=struct()
+extras.sortedconc=sortedconc
+extras.sortedconc_nonorm=sortedconc_nonorm
+extras.sortedgroupconc=sortedgroupconc
+extras.sortedgroupconc_nonorm=sortedgroupconc_nonorm
+extras.sortedlabels=sortedlabels
+extras.sortedgrouplabels=sortedgrouplabels
+if(numslopes!=0) {
+   extras.nssortedconc=nssortedconc
+   extras.nssortedgroupconc=nssortedgroupconc
+   extras.nssortedlabels=nssortedlabels
+   extras.nssortedgrouplabels=nssortedgrouplabels
+}
+
+#Because I'm picky
+model.normconc=type(100.0*model.conc/sum(model.conc,axis=z),format=float)
+
+pyt=struct()
+pyt.measured=model.measured
+pyt.modeled=model.modeled
+pyt.xaxis=model.xaxis
+pyt.conc=model.conc
+pyt.normconc=model.normconc
+pyt.rms=model.rms
+pyt.grouped_conc=model.grouped.grouped_conc
+pyt.grouped_normconc=model.grouped.grouped_normconc
+pyt.liblabel=model.endlib.label
+pyt.grouped_label=model.grouped.grouped_labels
+pyt.libdata=model.endlib.data
+
+write(model,imgfileprefix+'_final_model.hdf',hdf)
+write(extras,imgfileprefix+'_final_extras.hdf',hdf)
+write(pyt,imgfileprefix+'_final.hdf',hdf)

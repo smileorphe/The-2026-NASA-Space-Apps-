@@ -1,0 +1,92 @@
+define make_ssa() {
+
+if ($ARGC==0) {
+	printf("\n")
+	printf("Creates a structure with single scattering albedo, xaxis, and mineral name \n")
+	printf("$1 = n array \n")
+	printf("$2 = k array \n")
+	printf("$3 = x axis \n")
+	printf("$4 = particle diameter \n")	
+	printf("$5 = file description \n")
+	printf(" T. Glotch 09/13/13, N. Scudder 4/14 \n")
+	return(0)
+
+}
+
+#Assume n, k, and xaxis arrays are already in [1,1,x] format
+n = $1
+k = $2
+xaxis = $3
+d = $4
+mineral = $5
+
+
+pi=3.14159
+
+n=float(n)
+k=float(k)
+xaxis=float(xaxis)
+
+denom1=n*((n+1)^2)
+
+s_i=1.014-(4/denom1)
+
+num1=((n-1)^2)+k^2
+denom2=((n+1)^2)+k^2
+
+s_e=(num1/denom2)+.05
+
+alpha=(4.*pi*n*k)/xaxis
+
+theta=exp(-alpha*d)
+
+num2=(1.-s_i)
+denom3=(1.-(s_i*theta))
+
+w=s_e+((1.-s_e)*(num2/denom3)*theta)
+
+#spec=struct()
+#spec.n=n
+#spec.k=k
+#spec.ssa=w
+#spec.xaxis=xaxis
+#spec.label=mineral
+#spec.gsize=d
+
+#return(spec)
+return(w)
+
+}
+
+
+
+define combine(data,choose,filename,force) {
+  if($ARGC < 3) {
+    printf("\n  Function to output combinations of numerical data: N choose k\n")
+    printf("  Minimum 3 arguments required:\n")
+    printf("  $1 = list[i,1,1] x-sorted data. float/int/double\n")
+    printf("  $2 = Number of values k in each combination (N choose $2)\n")
+    printf("  $3 = Output file name. Tab-delimited. Combinations occupy one line each\n\n")
+    printf("  Options:\n  force=1 Forces overwrite of existing file. Default is 0\n")
+    return(null)
+  }
+  data = $1
+  choose = $2
+  filename = $3
+  if(hasvalue(force)==0) force=0
+
+  if(length(data[,1,1]) < choose) {
+    printf("  Error: Number of values in each combination cannot be greater than the total number of given values\n")
+    return(null)
+  }
+  if(fexists(filename) == 1) {
+    if(force==1) system("rm "+filename)
+    else {
+      printf("  Error: File '%s' exists with data inside, please try another file name or use the force option to overwrite\n",filename)
+      return(null)
+    }
+  }
+  iter_comb(float(data),1,length(data[,1,1]),1,choose,filename)
+  return(null)
+}
+

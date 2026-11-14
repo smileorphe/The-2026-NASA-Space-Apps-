@@ -1,0 +1,143 @@
+NASA SPACE APPS 2026 · EVA PLANNER JEZERO
+
+Liste des tâches du projet
+
+Toutes les tâches pour passer du prototype au projet soumis, dans l'ordre du travail. Le créneau est compté en heures depuis le début du hackathon (H+0). « Terminé
+quand... » donne le critère qui dit qu'une tâche est vraiment finie. Cochez la case au fur et à mesure.
+
+67 14  40  39                                                                     14 11             14 14 5
+tâches déjà faites (prototype) priorité haute bonus Chef de projet Données Algorithmes Front / UI 3D Toute l'équipe
+
+ID TÂCHE                                                         RÔLE             PRIORITÉ STATUT   CRÉNEAU DÉPEND DE  TERMINÉ QUAND...
+
+Organisation 5 tâches · 0 déjà faites                             Chef de projet  Haute    À faire  Avant J --         Résumé d'une page partagé à l'équipe
+T01 Lire le règlement, la grille du jury et les règles sur l'IA   Données         Haute    À faire                     Connexion testée sur un téléchargement
+T02 Créer un compte Earthdata Login (gratuit)                     Chef de projet  Haute    À faire  Avant J --         Chacun a poussé un premier commit
+T03 Créer le dépôt GitHub, les dossiers et les règles de          Toute l'équipe
+                                                                  Chef de projet  Haute    À faire  H+0­1  --          Format écrit dans le README, validé par
+      nommage                                                                                                          Données et 3D
+T04 Fixer le contrat d'interface data.json (relief, rochers,      Données         Haute    À faire  H+0­1  T03         Planning visible par tous
+                                                                  Toute l'équipe
+      itinéraire, couches)                                                                          H+0­1  --          Tableau : fichier, format, résolution, emprise
+T05 Répartir les rôles et afficher le planning des 48 h                                                                Coordonnées figées, plus aucun
+                                                                                  Haute    À faire  H+0­2  T02         changement après H+3
+Données NASA 9 tâches · 0 déjà faites                                             Haute    À faire                     Fichiers GeoTIFF couvrant la zone
+T06 Inventaire des ressources NASA officielles du défi                                              H+2­3  T06         Image alignée sur le relief
+T07 Choisir et geler la zone de 2 × 2 km (Jezero par défaut)
+                                                                                                                       Couche minéraux en PNG transparent
+T08 Télécharger le relief (DTM HiRISE, sinon CTX, plus MOLA)     Données          Haute    À faire  H+3­5  T07         Couche thermique en PNG
+T09 Télécharger l'imagerie (orthoimage HiRISE ou CTX, et         Données          Haute    À faire                     Valeurs du bandeau météo avec source et
+                                                                                                    H+3­5  T07         date
+      couleur)                                                   Données                                               Dose moyenne et exemple d'alerte
+T10 Récupérer la minéralogie CRISM (carbonates, argiles)         Données          Moyenne  À faire  H+5­8  T07         documentés
+T11 Récupérer l'inertie thermique THEMIS                         Données          Moyenne  À faire                     Couches superposées sans décalage dans
+T12 Récupérer la météo (MEDA, simulations NASA Ames)                              Moyenne  À faire  H+5­8  T07         QGIS
+
+                                                                                                    H+8­10 T06
+
+T13 Récupérer les radiations (RAD) et la météo spatiale (DONKI) Données           Moyenne À faire   H+8­10 T06
+
+T14 Reprojeter et découper toutes les couches sur la même        Données          Haute    À faire  H+5­8  T08, T09
+      emprise
+ID TÂCHE                                                          RÔLE         PRIORITÉ STATUT            CRÉNEAU DÉPEND DE  TERMINÉ QUAND...
+
+Préparation Python 5 tâches · 1 déjà faites                        Données     Haute    À faire           H+8­12 T14         data.json généré depuis le vrai relief
+T15 Brancher le vrai relief dans prep.py (remplacer synth_dem)     Données     Haute    À faire           H+8­12 T14         albedo.jpg sans ombres qui contredisent le
+                                                                   Données                                                   soleil
+T16 Texture couleur depuis l'orthoimage, sans les ombres déjà      Données     Haute    Fait (prototype) H+8­12 T15          Recalculé sur le vrai relief
+      dans la photo                                                Données     Moyenne                                       Gros rochers réels dans data.json
+                                                                                        À faire           H+12­16 T16
+T17 Calculer pentes, relief fin (normal map) et couche pentes                                                                Le relief s'affiche correctement dans le
+                                                                               Haute    À faire           H+12     T15, T16  prototype
+T18 Placer les rochers depuis HiRISE (détection simple ou
+      repérage)                                                                                                              Recalculée sur les vraies données
+                                                                                                                             Chemin qui évite pentes > 20° et gros
+T19 Contrôler les fichiers exportés dans QGIS et dans la 3D                                                                  rochers
+                                                                                                                             Boucle aller-retour jouée dans la simulation
+Algorithmes 8 tâches · 4 déjà faites                              Algorithmes  Haute    Fait (prototype) H+12­14 T17         Contour affiché et mis à jour
+T20 Carte de coût : pentes, sable, rochers                        Algorithmes  Haute    Fait (prototype) H+12­14 T20         Chaque hypothèse sourcée dans un
+T21 Itinéraire aller avec A*                                                                                                 panneau
+                                                                                                                             Affichée sur tablette et casque
+T22 Retour par un autre chemin (plaine nord) dans l'appli         Algorithmes  Moyenne  À faire           H+14­18 T21        Déjà en place
+T23 Zone de retour à pied (Dijkstra) et son contour sur la carte  Algorithmes  Haute                                         Valeur affichée au briefing
+T24 Valider le modèle vitesse, oxygène et poids avec des          Algorithmes  Haute    À faire           H+14­18 T20
+                                                                                                                             Chaque couche activable et légendée
+      sources                                                     Algorithmes           Fait (prototype) H+18­20 --          Le choix change les stations proposées
+T25 Heure limite de départ recalculée en direct                   Algorithmes                                                Déjà en place
+T26 Heure solaire martienne et soleil (Mars24)                    Algorithmes  Moyenne  À faire           H+24­28 T24        Distance et jauges recalculées au dépôt
+T27 Dose de radiation estimée de la sortie                                     Haute                                         Un critère rouge bloque le départ
+Écran habitat 10 tâches · 2 déjà faites                           Front / UI   Basse    Fait (prototype) --        --        Position et oxygène visibles
+T28 Panneau des 6 couches avec source et date                     Front / UI                                                 Les messages arrivent sur le casque
+T29 Trois cartes de mission (carbonates, argiles, terrain)        Front / UI            À faire           H+28­30 T13        Déjà en place
+T30 Jauges temps, oxygène à l'arrivée et poids                    Front / UI
+T31 Glisser-déposer les stations sur la carte                     Front / UI   Haute    À faire           H+12­18  T19
+T32 Briefing GO / NO-GO (liste de contrôle)                       Front / UI   Moyenne  À faire           H+18­22  --
+T33 Suivi en direct : mini-carte avec EV1 et EV2                  Front / UI   Haute    Fait (prototype)  --       --
+T34 Messagerie avec réponses prêtes                               Front / UI   Basse    À faire           H+30­36  T21
+T35 Bouton « Simuler un imprévu »                                              Moyenne  À faire           H+24­28  T12, T13
+                                                                               Moyenne  En cours          H+24­28  --
+                                                                               Basse    À faire           H+30­34  --
+                                                                               Haute    Fait (prototype)  --       --
+ID TÂCHE                                                      RÔLE          PRIORITÉ  STATUT    CRÉNEAU    DÉPEND DE  TERMINÉ QUAND...
+                                                                                                H+28­32    T21
+T36 Carte d'urgence : chemin le plus court vers l'abri         Algorithmes   Moyenne   À faire  H+34­38    --         Affichée dès l'alerte
+T37 Débriefing prévu / réel                                    Front / UI    Basse     À faire                        Résumé affiché en fin de sortie
+Casque (HUD) 6 tâches · 5 déjà faites
+T38 Vue astronaute qui avance sur l'itinéraire                 3D           Haute     Fait (prototype) --  --         Déjà en place
+T39 Chemin lumineux au sol et halo sur la balise               3D           Haute                                     Déjà en place
+T40 Flèche vers l'habitat avec temps de retour                 3D           Haute     Fait (prototype) --  --         Déjà en place
+T41 Bord de visière orange ou rouge selon les seuils           3D           Haute                                     Déjà en place
+T42 Signaler les rochers cartographiés à l'approche            3D           Moyenne   Fait (prototype) --  --         Message « passer à gauche / droite »
+T43 Mode tempête de poussière                                  3D           Moyenne                                   Déjà en place
+Tablette 4 tâches · 0 déjà faites                                                     Fait (prototype) --  --
+T44 Écran tablette 2D séparé, ouvrable sur un téléphone        Front / UI                                             Page mobile qui affiche le même plan
+T45 Mode station : tâches en gros boutons qui se remplissent   Front / UI             À faire   H+20­24 T18           Utilisable au pouce, avec des icônes
+T46 Bouton « J'ai trouvé quelque chose d'inhabituel »          Front / UI                                             Accepté seulement si l'oxygène reste  30
+                                                                                      Fait (prototype) --  --         %
+T47 Liste de contrôle du sas                                   Front / UI                                             Démarrer bloqué tant qu'une case manque
+Simulation et imprévus 4 tâches · 2 déjà faites                             Moyenne   À faire   H+18­24 T04
+T48 Synchroniser les 3 écrans (même plan, même alerte)         Algorithmes  Moyenne   À faire   H+24­28 T44           Une alerte déclenchée apparaît sur les 3
+                                                                            Basse     À faire   H+28­32 T45           écrans
+T49 Avance rapide (×1, ×10, ×60, ×300)                         3D                                                     Déjà en place
+T50 Imprévus : éruption solaire, tempête, obstacle, message    3D           Basse     À faire   H+28­32 T44           Déjà en place
+T51 Imprévus bonus : panne de foreuse, coéquipier blessé       Algorithmes                                            Zone de retour rétrécie pour le blessé
+Réalisme 3D 5 tâches · 0 déjà faites                                        Haute     À faire   H+24­30 T44
+T52 Ombres en cascades (extension CSM)                         3D                                                     Ombres nettes de près et de loin
+T53 Ombrage de contact (N8AO)                                  3D           Haute     Fait (prototype) --  --         Rochers bien posés au sol
+T54 Son du vent martien enregistré par Perseverance            3D           Haute                                     Son en boucle en vue casque, crédité
+                                                                            Basse     Fait (prototype) --  --         NASA
+T55 Photos de Perseverance aux étapes                          Front / UI                                             3 ou 4 photos placées et créditées
+T56 Performance : au moins 30 images/s sur le PC de démo       3D                     Bonus     H+34­38 T50           Mesuré avec stats.js, PC branché
+
+                                                                            Basse     Bonus     H+30­36 --
+                                                                            Basse     Bonus     H+30­36 --
+                                                                            Moyenne   À faire   H+32­36 --
+
+                                                                            Moyenne   À faire   H+32­36 --
+                                                                            Haute     À faire   H+36­38 --
+ID TÂCHE                                          RÔLE            PRIORITÉ STATUT  CRÉNEAU DÉPEND DE  TERMINÉ QUAND...
+
+Qualité et démo 4 tâches · 0 déjà faites          3D              Haute  À faire   H+38­40 --         Démo lancée Wi-Fi coupé
+T57 Copie locale qui marche sans internet         3D              Basse  À faire                      Un raccourci par imprévu
+T58 Raccourcis clavier du mode démo               Toute l'équipe  Haute  À faire   H+38­40 T50        Plus que des corrections de bugs
+T59 Gel du code                                   Toute l'équipe  Haute  À faire                      3 passages réussis d'affilée
+T60 Jouer le scénario complet 3 fois sans erreur                                   H+40     --
+Pitch et soumission 7 tâches · 0 déjà faites
+T61 Script du pitch en 6 temps                                                     H+40­42 T59
+T62 Vidéo de démo (OBS puis CapCut)
+T63 Slides de présentation                        Chef de projet  Haute  À faire   H+30­36  --        Texte minuté à 3 min
+T64 README, crédits NASA et déclaration de l'IA   Chef de projet  Haute  À faire   H+40­44
+T65 Remplir la page de soumission Space Apps      Chef de projet  Haute  À faire   H+40­44  T60       Vidéo au format demandé par Space Apps
+T66 Répéter le pitch 3 fois, chronomètre en main  Chef de projet  Haute  À faire   H+42­44
+T67 Soumettre avant l'heure limite                Chef de projet  Haute  À faire   H+44­46  --        Nombre de slides conforme au règlement
+                                                  Toute l'équipe  Haute  À faire   H+44­46
+                                                  Chef de projet  Haute  À faire   H+46­48  --        Toutes les sources listées
+
+                                                                                            T62, T63, T64 Brouillon complet enregistré
+
+                                                                                            T61       Moins de 3 min à chaque passage
+
+                                                                                            T65       Confirmation de soumission reçue
+
+À faire en premier : T01 (règlement), T02 (compte Earthdata) et T06 (inventaire des données officielles) : le reste en dépend. Version en ligne et modifiable : la feuille « Liste des tâches EVA Planner ».
+

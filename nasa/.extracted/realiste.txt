@@ -1,0 +1,187 @@
+NASA SPACE APPS 2026 · EVA PLANNER JEZERO
+
+Fiche réalisme 3D : faire mieux que le
+prototype
+
+Tout ce qu'il faut pour obtenir une vue de Mars crédible pour un jury d'experts : la chaîne de
+production, les données, les techniques de rendu, les références et la checklist. Fichiers fournis avec
+cette fiche : prep.py , index.html et le dossier assets/ .
+
+01 Le principe : le réalisme vient des données, puis de la lumière
+
+  Ordre d'importance : 1. un vrai relief précis · 2. une vraie texture · 3. un soleil bas et des ombres
+  justes · 4. la brume de poussière · 5. les rochers · 6. le post-traitement. Ne passez à l'étape suivante
+  que quand la précédente est bonne.
+
+02 La chaîne de production
+
+ÉTAPE        OUTILS                   CE QU'ON PRODUIT
+
+1. Explorer  NASA Mars Trek, QGIS     Choix de la zone (environ 2 × 2 km autour de la cible), vérification
+                                      que les couches se superposent bien.
+2. Préparer Python : rasterio, GDAL,  Grille d'altitudes, pentes, texture couleur, texture de relief fin, carte
+                numpy, scipy, Pillow  de coût, rochers, itinéraire A*, fichier data.json .
+                                      5 à 10 formes de rochers, l'habitat, un astronaute ; export en .glb
+3. Modéliser Blender                  compressé (Draco).
+                                      La scène 3D, la lumière, les effets, l'interface.
+4. Afficher Three.js + extensions +
+                post-traitement       Au moins 30 images/seconde sur le PC de démo, aucune erreur.
+
+5. Vérifier Chrome F12, stats.js,     Vidéo de démo et captures.
+                Spector.js
+
+6. Présenter OBS, CapCut ou DaVinci
+                Resolve
+
+03 Les données NASA à chercher en premier
+
+DONNÉE                                RÉSOLUTION  USAGE
+
+HiRISE DTM (relief)                   1m          Relief principal de la zone de marche. La donnée qui
+                                                  change tout.
+HiRISE orthoimage
+HiRISE couleur                         25 cm      Texture rapprochée (niveaux de gris).
+CTX DTM + orthoimage
+MOLA / HRSC                            50 cm à 1 m Pour coloriser la texture en niveaux de gris.
+
+                                       20 m / 6 m Terrain autour de la zone et horizon.
+
+                                       200 à 460 Remparts du cratère au loin.
+                                      m
+DONNÉE                                 RÉSOLUTION  USAGE
+
+CRISM                                   18 m       Couche minéralogie et cibles scientifiques.
+
+MEDA (Perseverance), REMS (Curiosity) mesures      Météo, poussière, vent dans le bandeau des
+                                                   conditions.
+
+Images Mastcam-Z de Perseverance       photos au sol Références de couleur et de lumière pour régler le
+                                                         rendu.
+
+04 Ce que fait le prototype, et comment faire mieux
+
+ÉLÉMENT          PROTOTYPE ACTUEL      POUR FAIRE MIEUX
+
+Relief           Synthétique, grille   Vrai DTM HiRISE ; découpage en tuiles avec niveaux de détail
+                 de 3,9 m dans la      (3DTilesRendererJS ou découpage en quadtree) pour avoir 1 m près
+                 3D                    de la caméra.
+
+Texture          Générée par           Orthoimage HiRISE 25 cm colorisée avec HiRISE couleur. Retirer les
+                 Python, 1 m/pixel     ombres déjà présentes dans la photo (diviser par un ombrage
+                                       calculé à l'heure de la prise de vue), sinon elles contredisent votre
+                                       soleil.
+
+Matériau du sol  Texture + relief fin  Ajouter une carte de rugosité (roche plus lisse que la poussière) et
+                 + grain               une projection triplanaire sur les pentes fortes pour éviter la texture
+                                       étirée.
+
+Rochers          3 formes générées 5 à 10 rochers sculptés dans Blender avec textures de roche (Poly
+
+                 par le code           Haven, ambientCG), 2 niveaux de détail ; densité calée sur les cartes
+
+                                       d'abondance de rochers des sites d'atterrissage.
+
+Ciel             Dégradé caramel + Diffusion atmosphérique avec poussière ; régler les couleurs en
+
+                 halo bleu             comparant avec les photos Mastcam-Z au même moment de la
+
+                                       journée.
+
+Soleil           Mars24, éclairage     Soleil apparent plus petit ( 0,35°, environ 2/3 de celui vu de la Terre)
+                 réglé à l'oeil        et lumière plus faible ( 43 % de celle reçue sur Terre) ; régler
+                                       l'exposition en conséquence.
+
+Ombres           Une carte             Ombres en cascades (extension CSM de Three.js) : nettes près de la
+
+                 d'ombres, 2048 px caméra, larges au loin.
+
+Post-traitement  Halo, étalonnage,     Ajouter l'ombrage de contact (N8AO ou GTAO), le flou de profondeur
+                 vignette, grain       en vue astronaute, et un étalonnage par table de couleurs (LUT) tirée
+                                       des photos de Perseverance.
+
+Atmosphère vivante Aucune              Particules de poussière qui dérivent, petit tourbillon de poussière au
+                                       loin, reflet de visière en vue astronaute.
+
+Présence humaine Habitat simple        Astronaute animé (modèles NASA 3D Resources), traces de pas
+                                       laissées au sol, rover Perseverance au loin.
+
+Son              Aucun                 Le vent de Mars enregistré par les micros de Perseverance (sons
+
+                                       publiés par la NASA). Effet très fort sur le jury.
+
+Performance      Textures JPG, tout Textures compressées KTX2, modèles Draco, chargement progressif
+                 chargé d'un coup ; viser 60 images/seconde.
+05 La boîte à outils finale                     Pour aller plus loin
+
+ Indispensables                                       Blender (rochers, habitat, astronaute)
+                                                      QGIS (vérifier les données)
+        VS Code, Git, GitHub, Claude Code             N8AO (ombrage de contact), three-
+        Python : rasterio, GDAL, numpy, scipy,        mesh-bvh (collisions)
+        Pillow                                        3DTilesRendererJS (gros terrains en
+        Three.js 0.160 et ses extensions :            tuiles)
+        OrbitControls, EffectComposer, CSM,           Poly Haven, ambientCG, NASA 3D
+        GLTFLoader                                    Resources
+        OBS pour enregistrer la démo
+
+06 Utiliser les fichiers fournis
+
+Lancer le prototype sur votre PC
+
+1. Mettre index.html, prep.py et le dossier assets/ dans un même dossier
+
+2. pip install numpy scipy pillow               (et rasterio pour les vraies données)
+
+3. python prep.py                                régénère assets/
+
+4. python -m http.server 8000                    serveur local
+
+5. Ouvrir http://localhost:8000 dans Chrome
+
+Ouvrir index.html par double-clic ne fonctionne pas : le navigateur bloque le chargement des fichiers
+locaux. Il faut le serveur local de l'étape 4.
+
+Brancher les vraies données NASA le jour J
+
+Dans prep.py , remplacez la ligne dem, craters, sandmask = synth_dem() par la lecture du fichier de
+relief :
+
+  import rasterio
+  with rasterio.open("DTM_Jezero.tif") as src:
+
+          dem = src.read(1).astype("float32")
+          dem[dem == src.nodata] = np.nan
+  # découper la zone de 2 km, remplir les trous, ramener à 2049 x 2049
+  dem = dem[r0:r1, c0:c1]
+  dem = np.where(np.isnan(dem), np.nanmean(dem), dem)
+  dem = ndimage.zoom(dem, 2049 / dem.shape[0], order=1)
+  craters, sandmask = [], np.zeros_like(dem)
+
+Pour la texture, remplacez le calcul de l'albédo par l'orthoimage HiRISE redimensionnée en 2048 ×
+2048. Les pentes, la carte de coût, les rochers et l'itinéraire se recalculent automatiquement à partir du
+vrai relief.
+
+07 Checklist réalisme avant la démo
+
+   Comparaison côte à côte avec une vraie photo Mastcam-Z : couleur du sol, du ciel, dureté des
+   ombres.
+   Aucune ombre « cuite » dans la texture qui contredit le soleil.
+   Pas de texture floue ni étirée en vue astronaute.
+   Les rochers touchent le sol (pas de rocher qui flotte).
+   L'horizon disparaît dans une brume orangée, sans bord visible.
+   Au coucher du soleil, le halo bleu autour du soleil est visible.
+   Au moins 30 images/seconde sur le PC de démo, branché sur secteur.
+   Chaque couche affiche sa source NASA ; les simulations sont étiquetées comme telles.
+   La démo tourne sans internet.
+
+08 Références à garder ouvertes
+
+      NASA Mars Trek : exploration et téléchargement des couches.
+      HiRISE (Université d'Arizona) et USGS Astrogeology : DTM et orthoimages.
+      PDS Geosciences Node : données CRISM, MEDA, REMS.
+      Images brutes de Perseverance (site Mars 2020 de la NASA) : références visuelles.
+      Sons de Mars (site Mars 2020 de la NASA) : enregistrements du vent.
+      Exemples Three.js (threejs.org/examples) : CSM, post-traitement, terrain.
+
+Fiche réalisme 3D · EVA Planner Jezero · 14 novembre 2026. Les valeurs de résolution sont des ordres de grandeur : vérifiez-les
+sur les fichiers réellement fournis au hackathon.
+

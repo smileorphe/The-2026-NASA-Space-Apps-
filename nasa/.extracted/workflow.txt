@@ -1,0 +1,1015 @@
+Dossier workflow : une sortie complète NASA SPACE APPS 2026 · INTERPLANETARY SURVIVAL GUIDE: MARTIAN MAP
+avec EVA Planner
+
+La sortie EVA-03 au cratère Jezero, étape par étape, de la veille au débriefing, sur les
+trois outils de l'astronaute : l'écran de l'habitat, la tablette de terrain et l'affichage du
+casque. Chaque étape montre une simulation de l'écran, ce que fait l'équipage, puis
+l'explication. La troisième partie couvre tous les imprévus possibles, et la cinquième
+présente la version simplifiée de l'interface pour le jury, avec le pitch en 6 temps.
+
+Aller (2,18 km)  Retour par la plaine nord (2,29 km)  Zone de retour à pied (125 min)    Stations scientifiques
+
+  ÉCRAN HABITAT                      TABLETTE DE TERRAIN                CASQUE (HUD)
+
+Préparer, décider, suivre depuis   Travailler aux arrêts : sas,       Marcher les mains libres : cap,
+l'intérieur. Grand écran, vue 3D,  stations, décisions sur place.     balises, oxygène, temps de retour
+toutes les couches.                Gros boutons utilisables avec des  et alertes devant les yeux.
+                                   gants.
+
+Terrain, cartes et vues sont des simulations produites par la chaîne EVA Planner (script Python et rendu 3D) sur un terrain de démonstration. Les
+valeurs physiologiques et météo sont des ordres de grandeur réalistes, à remplacer par les données NASA du hackathon. Équipage et numéro de
+sol fictifs.
+PARTIE 1 · LA MISSION
+
+Fiche de mission EVA-03
+
+ÉLÉMENT                 DÉTAIL
+
+Lieu                    Plancher du cratère Jezero, entre l'habitat et le rebord d'un cratère secondaire proche du delta.
+Objectif scientifique   Zone de 2 × 2 km.
+Équipage
+Itinéraire              Prélever des roches carbonatées capables de garder des traces d'eau ancienne et, peut-être, de
+Horaire (heure solaire  vie microbienne passée ; vérifier sur place les cartes orbitales (minéraux et nature du sol).
+locale)
+Matériel                Binôme obligatoire : EV1 Amina (cheffe de sortie, foreuse) et EV2 Karim (spectromètre, photos).
+                        À l'habitat : un coéquipier au suivi (CAPCOM local) et un rover pressurisé prêt à partir.
+Combinaison
+                        Habitat   sable sombre (742 m)   carbonates (843 m)   rebord du cratère (615 m) 
+                        retour par la plaine nord (2,29 km). Total : 4,47 km, dénivelé positif d'environ 65 m.
+
+                        Briefing 06:30 · sas 07:15 · départ 07:45 ·  08:25 ·  09:30 ·  10:50 · retour 11:20 · arrivée
+                        13:20 · débriefing 14:00. Durée hors habitat : 5 h 35.
+
+                        EV1 : foreuse portable 12 kg, 4 tubes à échantillons 4 kg. EV2 : spectromètre portable 6 kg,
+                        caméra et outils 5 kg. Avec la gravité martienne (0,38 g), la charge se sent comme 6 kg et 4 kg,
+                        mais elle gêne l'équilibre : la pente maximale passe de 25° à 20°.
+
+                        Autonomie d'environ 9 h. Règle : rentrer avec au moins 30 % d'oxygène. Arrivée prévue avec 35
+                        %.
+
+Les six types de données utilisés (le défi en demande au moins trois)
+
+TYPE        SOURCE NASA                                           À QUOI ÇA SERT PENDANT LA SORTIE
+
+Optique     MRO HiRISE ( 25 cm), CTX                              Fond de carte, repérage des rochers, photos de référence.
+                                                                  Pentes, dénivelé, calcul de l'itinéraire, vue 3D.
+Topographique HiRISE DTM, MOLA                                    Où sont les carbonates et les argiles : choix des stations.
+                                                                  Sol meuble ou roche dure : où l'on peut marcher sans
+Spectrale   MRO CRISM                                             s'enfoncer.
+                                                                  Température, vent, poussière, heure de lever et coucher.
+Thermique Mars Odyssey THEMIS
+                                                                  Dose de la sortie, alertes d'éruption solaire.
+Atmosphérique Perseverance MEDA, simulations NASA
+                   Ames
+
+Radiations  Curiosity RAD, base DONKI (météo
+            spatiale)
+
+Pentes : vert < 10°, jaune 10­15°, orange 15­ Inertie thermique (simulée) : sombre = sable Minéraux (simulé) : vert-bleu = carbonates,
+
+20°, rouge > 20° (interdit avec charge).  meuble, clair = roche.  violet = argiles.
+PARTIE 1 · POUR TOUT LE MONDE
+
+Lexique simple
+
+Le dossier garde quelques termes de mission. Les voici en mots simples, pour l'équipe, le jury et le public.
+
+TERME                  EN MOTS SIMPLES
+
+EVA                    Sortie extravéhiculaire : une sortie à pied, en combinaison, hors de l'habitat.
+
+EV1 / EV2              Astronaute 1 (chef de sortie) et astronaute 2 (son binôme).
+
+Coéquipier de suivi    La personne restée dans l'habitat qui suit la sortie à l'écran et parle à l'équipage (la NASA
+                       l'appelle CAPCOM).
+
+HUD                    Affichage tête haute : les informations projetées sur la visière du casque.
+
+Zone de retour à pied  Toute la zone d'où l'on peut encore rentrer à l'habitat à pied avec assez d'oxygène. On
+                       n'en sort jamais.
+
+Réserve de 30 %        L'oxygène qu'il doit toujours rester en arrivant. C'est la marge de sécurité.
+
+Opacité de poussière   La quantité de poussière dans l'air. Plus elle est forte, moins on voit et moins le soleil
+                       chauffe.
+
+Inertie thermique      La façon dont le sol garde la chaleur. Elle permet de distinguer la roche dure du sable
+                       meuble depuis l'orbite.
+
+Carbonates, argiles    Des minéraux qui se forment en présence d'eau : ils racontent le passé humide de Mars.
+
+Éruption solaire       Une explosion à la surface du Soleil qui envoie des particules dangereuses. Mars, sans
+                       champ magnétique, est peu protégée.
+
+HiRISE, CTX, CRISM, THEMIS Les caméras et instruments des sondes en orbite autour de Mars qui fournissent les
+                                   images, les reliefs et les minéraux.
+
+MEDA, RAD              Les instruments des rovers Perseverance (météo) et Curiosity (radiations) au sol.
+
+A*                     L'algorithme qui trouve le chemin le plus sûr, comme un GPS qui éviterait les pentes et les
+
+                       rochers.
+
+Heure solaire locale   L'heure sur Mars à l'endroit de la mission : midi quand le soleil est au plus haut. Une
+                       journée martienne dure 24 h 39 min.
+PARTIE 1 · LES OUTILS
+
+Qui fait quoi, sur quel outil
+
+OUTIL            QUAND                        CE QU'IL AFFICHE                   COMMENT ON L'UTILISE
+  ÉCRAN HABITAT
+                 La veille, le briefing, le   Carte complète, six couches,       Souris ou tactile. C'est le seul outil
+  TABLETTE       suivi en direct par le       vue 3D, budget de la sortie,       qui permet de modifier le plan en
+                 coéquipier resté à           météo, alertes, position des deux  profondeur.
+  CASQUE (HUD)   l'intérieur, le débriefing.  astronautes.
+
+                 Au sas et à chaque           Carte zoomée, tâches de la         Fixée à l'avant-bras. Gros boutons
+                 station, quand l'astronaute  station, minuteur, boutons photo,  pour gants pressurisés, peu de texte,
+                 est arrêté.                  échantillon, note, mesure ;        confirmation en deux gestes.
+                                              détours et choix proposés.
+
+                 Pendant toute la marche, à Cap, prochaine balise, distance,     Mains libres. Commandes vocales
+                                                                                 simples (« prochaine balise », «
+                 l'aller et au retour.        oxygène, temps de retour,          temps de retour »). Rien ne bouge
+                                                                                 sans raison pour ne pas distraire.
+                                              alertes, obstacles signalés.
+
+Les trois outils partagent le même plan et les mêmes calculs, mais chacun garde une copie locale : en cas de
+coupure radio, la tablette et le casque continuent de fonctionner.
+
+Chronologie complète
+
+#  HEURE         ÉTAPE                                                           OUTIL      O RESTANT
+                                                                                   HABITAT
+1 J-1 soir       Choisir l'objectif scientifique et les stations                            --
+
+2 J-1 soir       Calculer l'itinéraire, le matériel et le budget                 HABITAT    --
+3 06:30          Briefing GO / NO-GO
+                                                                                 HABITAT    --
+
+4 07:15          Préparation au sas, vérifications                               TABLETTE   100 %
+5 07:45          Marche habitat  station 1 (742 m)                               CASQUE     100  92 %
+
+6 08:25          Station 1 : sable sombre (25 min)                               TABLETTE   92  88 %
+
+7 08:50          Marche station 1  station 2 (843 m)                             CASQUE     88  81 %
+
+8 09:30          Station 2 : carbonates, forage (50 min)                         TABLETTE   81  69 %
+
+9 10:20          Montée station 2  station 3 (615 m)                             CASQUE     69  62 %
+
+10 10:50         Station 3 : rebord du cratère, choix du retour                  TABLETTE   62  57 %
+
+11 11:20         Retour par la plaine nord (2,29 km)                             CASQUE     57  35 %
+
+12 13:20         Rentrée au sas, échantillons                                    TABLETTE   35 %
+13 14:00         Débriefing et mise à jour de la carte                           HABITAT    --
+
+Pendant les étapes 4 à 12, l'écran de l'habitat reste allumé chez le coéquipier de suivi : il voit la position des deux
+astronautes, leur oxygène et les alertes, et peut leur envoyer un nouveau plan.
+PARTIE 2 · LE DÉROULÉ NOMINAL, DE L'ALLER AU RETOUR
+
+Choisir l'objectif et les stations 1                      ÉCRAN HABITAT J-1 · 18:00 · dans l'habitat
+
+EVA PLANNER · JEZERO · PRÉPARATION EVA-03                   Couche active : minéraux
+
+COUCHES                                                   CIBLES PROPOSÉES
+
+   Imagerie HiRISE                                         Sable sombre tester le sol
+   Relief / pentes
+   Minéraux CRISM                                          Carbonates                                 forage
+   Thermique THEMIS
+   Météo MEDA                                              Rebord      roche du
+   Radiations RAD                                         cratère      rebord
+
+OBJECTIF                                                  INTÉRÊT SCIENTIFIQUE
+
+Roches carbonatées :                                                                                  
+traces d'eau ancienne,
+biosignatures possibles.                                                                              
+
+                                                                             + sécurité
+
+                                                            Valider les 3 stations
+
+Ce que fait l'équipage                                    Ce que montre l'écran
+
+   Amina et Karim affichent la couche minéraux sur           Les zones minérales en couleur sur l'image orbitale.
+   l'imagerie.                                               Une fiche par cible : intérêt, outil à emporter, temps
+   Ils repèrent deux zones : carbonates près du cratère,     conseillé.
+   argiles plus à l'ouest.                                   Un classement par intérêt scientifique.
+   Ils choisissent trois stations et valident.
+
+Explication. Le défi demande de partir d'un objectif scientifique puis de choisir le lieu. La station  n'est pas
+la plus riche scientifiquement, mais elle vérifie si le sable sombre est praticable, ce qui sert les sorties
+suivantes. On combine ici données optiques et spectrales.
+2 Calculer l'itinéraire, le matériel et le budget ÉCRAN HABITAT J-1 · 19:00
+
+EVA PLANNER · ITINÉRAIRE EVA-03 · BINÔME EV1 + EV2          Pente max avec charge : 20°
+
+MATÉRIEL                                                    BUDGET DE LA SORTIE
+
+Foreuse   12 kg                                             Distance               4,47 km
+
+Tubes ×4  4 kg                                              Durée dehors           5 h 35
+
+Spectromètre 6 kg                                           Dénivelé +             65 m
+
+Caméra, outils 5 kg                                         O à l'arrivée : 35 % (mini 30 %)
+
+MODE                                                        Station  / zone 114 / 125 min
+
+   À pied, binôme                                           Départ  au plus tard 11:50
+   Rover pressurisé
+   Rover en secours                                         Dose estimée   0,16 mSv
+
+                                                                      Plan valide
+
+Ce que fait l'équipage                                      Ce que montre l'écran
+
+   Ils indiquent le matériel emporté par chacun.               L'aller en orange, le retour en blanc, la zone de retour
+   EVA Planner calcule l'aller le plus sûr (algorithme A*)     à pied en rouge pointillé.
+   et un retour différent par la plaine nord.                  Le budget : distance, durée, oxygène, dose de
+   Ils parcourent l'itinéraire en vue 3D pour repérer les      radiation.
+   passages délicats.                                          Les deux limites : station  à 114 min de l'habitat
+                                                               (limite 125 min), départ de  au plus tard 11:50.
+
+Explication. La charge réduit la pente franchissable : l'itinéraire évite donc les pentes de plus de 20°, les
+rochers de plus de 90 cm et le sable sombre. La zone de retour n'est pas un cercle : elle se rétrécit au sud, où
+
+le sable ralentit la marche. Le retour passe par un autre chemin pour éviter la descente du cratère avec des
+échantillons fragiles.
+Briefing GO / NO-GO 3    ÉCRAN HABITAT J0 · 06:30
+
+EVA PLANNER · BRIEFING EVA-03 · SOL 214 · 06:30 HEURE LOCALE  Données mises à jour 06:12
+
+CONDITIONS                                                    LISTE DE CONTRÔLE
+
+Température -78                                               Météo              GO
+              -22 °C
+                                                              Météo spatiale     GO
+
+Vent        4­7 m/s                                           Combinaisons       GO
+
+Poussière 0,6                                                 Matériel           GO
+
+()          normal                                            Rover de secours   GO
+
+Lever / 06:02 /                                               Suivi habitat      GO
+coucher 17:58
+
+MÉTÉO SPATIALE                                                GO pour EVA-03
+
+Éruption solaire aucune
+
+Dose        0,67
+
+moyenne mSv/sol
+
+Ce que fait l'équipage                                      Ce que montre l'écran
+
+   Le binôme et le coéquipier de suivi passent la liste de     Les dernières mesures avec leur source et leur
+   contrôle ensemble.                                          heure.
+   Ils regardent la vue 3D du départ éclairée à l'heure        L'état de chaque critère : GO, à surveiller, ou NO-GO.
+   prévue (soleil bas à l'est).                                Une simulation de ce que l'équipage verra en
+   Décision : GO. La fiche de briefing est envoyée sur         sortant.
+   les tablettes et les casques.
+
+Explication. La sécurité est la priorité de la NASA : si un seul critère passe au rouge, c'est NO-GO (voir la
+partie 3, scénarios A1 à A4). Les mesures affichent toujours leur heure : on ne prétend pas au temps réel, on
+affiche la dernière donnée connue.
+4 Préparation au sas TABLETTE 07:15 · sas de l'habitat
+
+EV1 AMINA · SAS                                       O 100 % · 07:38                                      RADIO 
+
+                                                                      Vérifications avant sortie
+
+                                                                          Pression combinaison stable
+                                                                          Oxygène 100 %, autonomie 9 h
+                                                                          Radio habitat et binôme
+                                                                          Casque : affichage calé
+                                                                          Foreuse, 4 tubes, spectromètre
+                                                                          Plan EVA-03 chargé (hors ligne)
+
+                                                                            Ouverture du sas
+
+                                                      Démarrer la sortie  Signaler un problème
+
+Ce que fait l'équipage                                Ce que montre la tablette
+
+   Chacun coche sa liste pendant la mise en pression     La carte du premier tronçon.
+   de la combinaison.                                    La liste de contrôle, élément par élément.
+   Ils vérifient que le plan est bien chargé dans la     Un bouton « Signaler un problème » qui renvoie au
+   tablette et le casque.                                scénario A3.
+   Ils appuient ensemble sur « Démarrer la sortie ».
+
+Explication. Le bouton « Démarrer » lance le chronomètre et le suivi de l'oxygène sur les trois outils. Le plan
+est copié dans la tablette et le casque : ils n'ont pas besoin de la radio pour guider l'équipage.
+
+                 
+Marche vers la station  5  CASQUE 07:45  08:25 · 742 m · 42 min
+
+                                NE 052°
+
+                            N  E 
+
+O 97 %                                                                     Station  690 m
+
+Temps dehors 00:09                                                      Arrivée prévue 08:25
+                                                                                    Balise 3 / 38
+
+                                                             B4 · 85 m
+
+Retour habitat 4 min                                                    Binôme EV2 6 m derrière
+
+Zone : OK                                                                                           Pente 3°
+
+                      Dans l'horaire · +0 min
+
+Ce que fait l'équipage                                       Ce que montre le casque
+
+   Amina ouvre la marche, Karim suit à quelques                 En haut : le cap. À gauche : l'oxygène. À droite : la
+   mètres.                                                      prochaine station.
+   Ils suivent les balises virtuelles, une tous les 20 m.       En bas : le temps de retour à l'habitat et l'état de la
+   Ils marchent les mains libres, le regard sur le terrain.     zone.
+                                                                La prochaine balise, marquée dans le paysage.
+
+Explication. Le casque n'affiche que ce qui sert à marcher. Le temps de retour est recalculé en permanence :
+c'est la donnée de sécurité principale. La vue montre la plaine au lever, avec les remparts du cratère Jezero
+dans la brume.
+6 Station  : le sable sombre TABLETTE 08:25  08:50 · 25 min
+
+STATION  · SABLE SOMBRE                             O 92 % · 08:31                       RETOUR 42 MIN
+
+                                                    Tâches
+
+                                                     Photo panoramique
+                                                     Enfoncement du pied : 3 cm
+
+                                                       Mesure au pénétromètre
+                                                       Comparer avec la carte thermique
+
+                                                    Temps restant
+
+                                                    19:12                                Mesure
+
+                                                               Photo
+
+                                                                    Note vocale  Station suivante
+
+Vue simulée depuis la station  vers la station .    Ce que fait l'équipage
+
+                                                       Karim photographie le site. Amina teste la
+                                                       portance du sol.
+                                                       Ils comparent avec la couche thermique : le sable
+                                                       est-il aussi meuble que prévu ?
+                                                       Ils notent le résultat d'un bouton, puis passent à
+                                                       la suite.
+
+                                                    Explication. Les photos et mesures sont placées
+                                                    automatiquement sur la carte. Si le sol est plus
+                                                    meuble que prévu, la couche thermique est corrigée
+                                                    pour les prochaines sorties (scénario B2).
+
+                                                  
+Marche vers la station  7  CASQUE 08:50  09:30 · 843 m · 40 min
+
+                                  E 071°
+
+                            E  S 
+
+O 86 %                                                       Station  610 m
+
+Temps dehors 01:12                                        Arrivée prévue 09:30
+                                                                    Balise 49 / 80
+
+                                                          Rochers : passer à droite
+
+Retour habitat 52 min                                            Binôme EV2 4 m
+
+Zone : OK                                                                   Pente 6°
+
+                       Dans l'horaire · -2 min
+
+Ce que fait l'équipage                                    Ce que montre le casque
+
+   Ils suivent les balises vers l'est, sur un sol ferme.     Le cap (E 071°) et la distance jusqu'à la station .
+   Ils passent à droite du groupe de rochers signalé.        Les rochers cartographiés, signalés à l'approche.
+   Karim dicte une observation : la note vocale est          L'avance ou le retard sur l'horaire, ici 2 minutes
+   placée sur la carte à sa position.                        d'avance.
+
+Explication. Les gros rochers repérés sur les images HiRISE sont signalés quand on s'en approche. L'horaire
+indique l'avance ou le retard sur le plan : ici 2 minutes d'avance. Un retard de plus de 10 minutes fait passer
+l'indicateur à l'orange (scénario B3).
+8 Station  : les carbonates, forage TABLETTE 09:30  10:20 · 50 min
+
+STATION  · CARBONATES                                      O 78 % · 09:52               RETOUR 84 MIN
+
+                                                           Tâches
+
+                                                            Spectromètre : carbonates confirmés
+                                                            Forage 30 cm, tube 1
+
+                                                              Forage 30 cm, tube 2
+                                                              Photos des carottes
+                                                              Scellement et étiquette
+
+                                                           Temps restant
+
+                                                           28:04
+
+                                                                           Échantillon  Photo
+
+                                                                           Note vocale  Station suivante
+
+Vue simulée depuis la station  vers le rebord du cratère.  Ce que fait l'équipage
+
+                                                              Karim confirme les carbonates au spectromètre.
+                                                              Amina fore deux carottes de 30 cm ; chaque tube
+                                                              est enregistré avec sa position.
+                                                              C'est l'étape la plus fatigante : l'oxygène baisse
+                                                              plus vite.
+
+                                                           Explication. La tablette suit la consommation réelle.
+                                                           Si elle dépasse la prévision, l'heure limite de départ
+                                                           de la station  recule automatiquement (scénario
+                                                           C3). En cas de panne de la foreuse, voir le scénario
+                                                           C2.
+
+                       
+Montée vers la station  9  CASQUE 10:20  10:50 · 615 m · 30 min
+
+                                NE 039°
+
+                            N  E 
+
+O 66 %                                                        Station  320 m
+
+Temps dehors 02:47                                         Arrivée prévue 10:50
+                                                        Dénivelé restant +22 m
+
+Retour habitat 1 h 41                                              Binôme EV2 5 m
+
+Zone : limite à 11 min                                  Pente 14° : pas courts
+
+                        Dans l'horaire · +3 min
+
+Ce que fait l'équipage                                  Ce que montre le casque
+
+   Ils montent à petits pas, avec une pause de 30          Le dénivelé restant (+22 m) et la pente du moment
+   secondes si le souffle s'accélère.                      (14°).
+   Amina vérifie la marge sur la zone de retour avant      Un conseil de marche en orange dès que la pente
+   d'arriver au rebord.                                    dépasse 12°.
+   Karim reste à moins de 5 m, car le terrain est plus     La marge sur la zone de retour : encore 11 minutes.
+   rocheux.
+
+Explication. C'est la partie la plus raide et la plus éloignée. Le casque affiche des conseils de marche quand la
+pente dépasse 12°. La zone passe à l'orange quand on s'approche à moins de 15 minutes de sa limite : on reste
+dedans, mais la marge diminue.
+10 Station  : rebord du cratère et choix du retour TABLETTE
+
+10:50  11:20 · 30 min
+
+STATION  · REBORD DU CRATÈRE                                           O 59 % · 11:12               RETOUR 114 MIN
+
+                                                                       Choisir le retour
+
+                                                                        Plaine nord · 2,29 km · 2 h 00
+                                                                          O à l'arrivée 35 % · terrain plat
+
+                                                                          Par l'aller · 2,18 km · 1 h 55
+                                                                          O à l'arrivée 36 % · descente raide
+
+                                                                       Départ au plus tard
+
+                                                                       11:50                                   Photo
+
+                                                                          Valider : plaine nord
+
+                                                                                       Échantillon  Note vocale
+
+                                                                       Ce que fait l'équipage
+
+                                                                          Panorama, prélèvement d'une roche du rebord,
+                                                                          comparaison avec les images orbitales.
+
+                                                                          Ils choisissent le retour : la plaine nord est un peu
+                                                                          plus longue mais plate, ce qui protège les
+                                                                          échantillons.
+
+Vue simulée depuis le rebord, vers l'intérieur du cratère secondaire.  Explication. C'est le point de décision de la sortie.
+
+                                                                       La tablette compare les deux retours avec l'oxygène
+                                                                       réellement restant. Si l'équipage était en retard ou
+                                                                       fatigué, elle recommanderait le chemin de l'aller
+                                                                       (scénario E1).
+Retour par la plaine nord 11  CASQUE 11:20  13:20 · 2,29 km · 2 h
+
+                                   SO 228°
+
+                               S  O 
+
+O 47 %                                                                  Habitat 1,12 km
+
+Temps dehors 04:18                                                 Arrivée prévue 13:20
+                                                                          Échantillons : 3
+
+                                                         Rocher 1,8 m : passer à gauche
+
+Retour habitat 58 min                                              Binôme EV2 7 m
+
+Zone : OK                                                                     Pente 2°
+
+                       O prévu à l'arrivée 35 % · réserve 30 % 
+
+Ce que fait l'équipage                                   Ce que montre le casque
+
+   Ils marchent à rythme régulier sur la plaine nord,       L'oxygène prévu à l'arrivée, comparé à la réserve de
+   plate et sans sable.                                     30 %.
+   Les trois tubes voyagent dans le sac de Karim, calés     La distance et l'heure d'arrivée à l'habitat.
+   pour ne pas être secoués.                                Le rocher signalé et le côté par lequel passer.
+   Ils contournent par la gauche le gros rocher
+   annoncé.
+
+Explication. Au retour, l'info la plus importante devient l'oxygène prévu à l'arrivée, comparé à la réserve
+obligatoire de 30 %. Le gros rocher devant est connu (repéré sur les images HiRISE) : le casque indique de
+quel côté passer. Un rocher non cartographié déclencherait le scénario B1.
+Rentrée au sas 12  TABLETTE 13:20  13:50
+
+SAS · RENTRÉE      O 35 % · 13:24                                                        DURÉE DEHORS 5 H 35
+
+                                          Rentrée
+
+                                           Brossage de la poussière
+                                           3 échantillons rangés au sas
+
+                                             Fermeture et mise en pression
+                                             Transfert des photos et notes
+
+                                          Bilan
+                                          4,47 km · 46 photos · 3 tubes · 7 notes · O 35 %
+
+                                          Terminer la sortie  Signaler un dommage
+
+Explication. La poussière martienne est fine et abrasive : on la retire avant d'entrer. Les échantillons restent au
+sas, hors de l'air de l'habitat. Le bouton « Terminer » arrête le suivi et envoie toutes les données vers l'écran de
+l'habitat.
+13 Débriefing et mise à jour de la carte ÉCRAN HABITAT 14:00
+
+EVA PLANNER · DÉBRIEFING EVA-03                               Données ajoutées à la carte
+
+PRÉVU / RÉEL                                                  CORRECTIONS DE LA CARTE
+
+Distance 4,47 / 4,52 km                                       Sable           plus ferme
+Durée 5 h 35 / 5 h 39
+O arrivée 35 / 35 %                                           Rocher non vu                                        0
+Retard max +4 min
+                                                              Vitesse réelle  1,7 km/h
+
+SCIENCE                                                       PROCHAINE SORTIE
+
+Échantillons  3                                               EVA-04 : argiles à l'ouest,
+                                                              passage par le sable 
+Photos        46                                              désormais autorisé.
+
+Carbonates confirmés                                              Archiver EVA-03
+
+Explication. Chaque sortie améliore la carte : la vitesse réelle de marche, la vraie nature du sol et les rochers
+rencontrés sont réutilisés pour planifier les sorties suivantes. C'est le passage des données robotiques aux
+données humaines.
+PARTIE 3 · LES IMPRÉVUS
+
+Tout ce qui peut arriver, et ce que fait chaque outil
+
+Codes couleur partout : VERT tout va bien, ORANGE à surveiller, on adapte le plan, ROUGE on rentre.
+
+A · Avant la sortie (briefing)
+
+A1 Tempête de poussière annoncée NO-GO
+
+DÉCLENCHEUR Opacité de poussière prévue au-dessus de 1,5, ou vent fort annoncé.
+
+DÉTECTÉ PAR   HABITAT la couche météo (MEDA, simulations NASA Ames) passe au rouge.
+ACTION       Sortie reportée. EVA Planner propose le prochain créneau favorable.
+POURQUOI     Visibilité réduite, panneaux solaires moins efficaces, poussière dans les joints de la combinaison.
+
+A2 Éruption solaire en cours ou prévue NO-GO
+
+DÉCLENCHEUR  Alerte de la base DONKI de la NASA : éjection de masse coronale ou flux de particules solaires dirigé
+             vers Mars.
+
+DÉTECTÉ PAR   HABITAT la couche radiations passe au rouge, avec l'heure d'arrivée estimée.
+ACTION
+             Sortie reportée jusqu'à la fin de l'événement ; l'équipage reste dans la partie la mieux protégée de
+             l'habitat.
+
+POURQUOI     Mars n'a pas de champ magnétique global et son atmosphère est mince : une éruption peut multiplier la
+             dose en quelques heures.
+
+A3 Problème de combinaison au sas NO-GO
+
+DÉCLENCHEUR Une vérification échoue : pression instable, radio, oxygène.
+
+DÉTECTÉ PAR   TABLETTE la case reste rouge, « Démarrer la sortie » est bloqué.
+ACTION       Sortie annulée pour les deux : on ne sort jamais seul. Réparation, puis nouveau briefing.
+
+POURQUOI     Le binôme est la première sécurité : chacun peut aider l'autre en cas de problème.
+
+A4 Cible hors de la zone de retour À ADAPTER
+
+DÉCLENCHEUR Avec la charge prévue, une station dépasse la limite de 125 minutes de retour.
+
+DÉTECTÉ PAR   HABITAT la station s'affiche hors de la zone, en rouge.
+ACTION       Alléger le matériel (la zone s'agrandit), choisir une cible de repli plus proche, ou utiliser le rover
+             pressurisé.
+
+POURQUOI     Règle de retour à pied : depuis n'importe quel point, il faut pouvoir rentrer avec la réserve d'oxygène,
+             même si tout le reste tombe en panne.
+B · Pendant la marche aller
+  B1 Obstacle imprévu sur le chemin DÉTOUR
+
+                                                 DÉCLENCHEUR             Un rocher, une fissure ou un talus absent
+                                                                         des images orbitales (trop petit pour
+DÉTOUR PROPOSÉ                   +68 m · +3 min                          HiRISE).
+
+                                                 DÉTECTÉ PAR             L'astronaute, qui le signale à la voix : «
+                                                                         obstacle devant ». Il touche ensuite
+                                                                         l'obstacle sur la . TABLETTE
+
+                                                 CE QUE MONTRENT La tablette calcule un détour (en vert) et
+
+                                                 LES OUTILS              son coût. Le CASQUE affiche les
+
+                                                                         nouvelles balises.
+
+                                                 ACTION                  Valider le détour d'un geste. L'obstacle
+                                                                         est ajouté à la carte pour tout le monde.
+
+                                                 POURQUOI                Les cartes orbitales ont une limite de
+                                                                         résolution : l'humain les complète sur le
+                                                                         terrain.
+
+B2 Sol plus meuble que prévu CONTOURNER
+
+DÉCLENCHEUR Les pieds s'enfoncent de plus de 5 cm ; la marche ralentit.
+
+DÉTECTÉ PAR     CASQUE la vitesse mesurée chute ; message « sol meuble ? ». L'astronaute confirme.
+
+ACTION       La TABLETTE recalcule un passage sur un sol plus dur (clair sur la couche thermique). L'horaire est mis
+             à jour.
+
+POURQUOI     S'enliser fatigue énormément et use l'oxygène. La couche thermique est corrigée pour la suite.
+
+B3 Retard sur l'horaire ADAPTER
+
+DÉCLENCHEUR  Plus de 10 minutes de retard sur le plan.
+DÉTECTÉ PAR   CASQUE l'indicateur d'horaire passe à l'orange.
+ACTION
+             À la station suivante, la TABLETTE propose : raccourcir la station, supprimer la station , ou rentrer
+             par le chemin le plus court. L'équipage choisit.
+
+POURQUOI     Mieux vaut perdre un peu de science que la marge de sécurité. L'heure limite de départ de  (11:50)
+             ne bouge jamais vers plus tard.
+
+B4 Perte de radio avec l'habitat CONTINUER PRUDEMMENT
+
+DÉCLENCHEUR Plus de contact radio pendant plus de 5 minutes.
+
+DÉTECTÉ PAR   CASQUE icône radio barrée. HABITAT dernière position connue affichée.
+ACTION       Les deux astronautes restent ensemble et continuent tant que tout est vert, avec la radio entre eux. Si le
+             contact ne revient pas en 30 minutes, retour à l'habitat. L'habitat prépare le rover.
+
+POURQUOI     Tablette et casque gardent le plan en local : la sortie ne dépend pas du réseau. La règle de retour fixe
+             évite toute improvisation.
+C · Aux stations
+
+C1 Découverte inattendue OPPORTUNITÉ
+
+DÉCLENCHEUR Une roche intéressante hors plan, par exemple des veines claires ou des taches inhabituelles.
+
+DÉTECTÉ PAR L'astronaute appuie sur « Station d'opportunité » sur la . TABLETTE
+
+ACTION       La tablette calcule l'effet d'un arrêt de 15 minutes : oxygène à l'arrivée, heure limite. Si tout reste vert,
+             l'arrêt est accepté ; sinon on prend une photo géolocalisée pour une prochaine sortie.
+
+POURQUOI     C'est la force d'un humain sur le terrain : saisir l'imprévu scientifique, sans jamais toucher à la marge de
+             sécurité.
+
+C2 Panne d'un instrument (foreuse) PLAN B
+
+DÉCLENCHEUR La foreuse s'arrête ou bloque.
+
+DÉTECTÉ PAR       TABLETTE bouton « Instrument en panne ».
+
+ACTION       La tablette bascule sur le plan B : prélèvement de surface à la pelle, mesures au spectromètre, photos
+             rapprochées. Le temps de station est raccourci et l'horaire mis à jour.
+
+POURQUOI     Chaque tâche a une solution de repli préparée la veille : pas de réflexion longue en combinaison.
+
+C3 Oxygène consommé plus vite que prévu RECALCUL
+
+DÉCLENCHEUR Effort intense (forage, montée) : consommation supérieure de 15 % à la prévision.
+
+DÉTECTÉ PAR   CASQUE et TABLETTE : l'oxygène prévu à l'arrivée baisse. L'heure limite de départ de  devient plus
+             tôt.
+
+ACTION       Ralentir, raccourcir les stations restantes, ou rentrer après la station .
+
+POURQUOI     Le budget est recalculé avec la consommation réelle, pas avec la théorie.
+D · Urgences
+  D1 Alerte d'éruption solaire pendant la sortie RETOUR IMMÉDIAT
+
+                 SO 231°
+
+             S  O 
+
+O 58 %                                                                                                Habitat 2,18 km
+
+                                                                                                 Chemin le plus court
+
+                   ALERTE RADIATION · RETOUR À L'ABRI
+
+            Particules solaires attendues dans  2 h · suivez le cap
+
+À pied : 1 h 55                                                                                     Binôme EV2 3 m
+Rover en route : rendez-vous 25 min
+
+                                            Laissez le matériel lourd · gardez les échantillons
+
+DÉCLENCHEUR La base DONKI signale un flux de particules solaires ; l'habitat relaie l'alerte.
+
+CE QUE MONTRENT CASQUE bandeau rouge, cap vers l'abri par le chemin le plus court. HABITAT la carte d'urgence ci-
+
+LES OUTILS  dessous, avec l'itinéraire du rover. TABLETTE « laisser la foreuse : oui ».
+
+ACTION      Demi-tour immédiat par le chemin connu. Le rover pressurisé part de l'habitat et vient à leur rencontre ;
+
+            son blindage protège mieux que la combinaison.
+
+POURQUOI    Depuis la station , rentrer à pied prend près de 2 heures : c'est pour cela qu'un rover reste prêt en
+            secours. La zone de retour à pied sert aussi de « zone d'abri ».
+
+            Écran habitat en urgence : chemin le plus court vers l'abri (rouge) et zone de retour.
+D2 Baisse anormale d'oxygène ou fuite RETOUR IMMÉDIAT
+
+DÉCLENCHEUR L'oxygène baisse plus vite qu'il ne devrait, ou la pression de la combinaison chute.
+
+DÉTECTÉ PAR     CASQUE alerte rouge et alarme sonore. Le binôme et l'habitat reçoivent l'alerte.
+ACTION         Procédure d'urgence de la combinaison (réserve de secours), retour par le chemin le plus court avec le
+               binôme à côté, rover envoyé.
+
+POURQUOI       C'est l'urgence la plus grave. Le casque affiche le temps restant avec la réserve de secours, comparé
+               au temps de retour.
+
+D3 Coéquipier blessé (entorse, chute) RETOUR ADAPTÉ
+
+DÉCLENCHEUR Karim se tord la cheville et ne peut marcher que lentement.
+
+DÉTECTÉ PAR    Signalement vocal ; la TABLETTE passe en mode « blessé ».
+
+ACTION         Vitesse de calcul divisée par deux : la zone de retour se rétrécit et l'itinéraire de retour est recalculé au
+               plus plat. Amina porte le matériel. Le rover vient les chercher au point le plus proche accessible.
+
+POURQUOI       Toutes les marges dépendent de la vitesse de marche : un blessé change tout, d'où le recalcul
+               immédiat.
+
+D4 Tempête de poussière locale, visibilité réduite RETOUR GUIDÉ
+
+O 49 %                                        SO 226°                     Habitat 1,20 km
+
+                                              S  O                          Balise 81 / 114
+
+               VISIBILITÉ RÉDUITE · NAVIGATION AUX BALISES
+
+                           Restez à moins de 5 m de votre binôme
+
+               B82 · 20 m
+
+Retour 1 h 02                                                                                     Binôme EV2 4 m
+
+Vent 18 m/s
+
+DÉCLENCHEUR    Un coup de vent soulève la poussière ; on ne voit plus qu'à quelques dizaines de mètres.
+               Balises rapprochées, cap renforcé, distance au binôme en permanence.
+CE QUE MONTRE
+LE CASQUE      Rentrer en suivant les balises, sans quitter le chemin déjà validé.
+ACTION         Quand on ne voit plus le paysage, le casque remplace la vue : le chemin connu reste sûr même sans
+               visibilité.
+POURQUOI
+
+D5 Panne du casque ou de la tablette REDONDANCE
+
+DÉCLENCHEUR L'affichage du casque ou la tablette s'éteint.
+
+ACTION         Utiliser la tablette du binôme (même plan), guidage vocal par l'habitat, et en dernier recours la fiche de
+               briefing papier au format des cartes de traverse d'Apollo, rangée dans la poche de la combinaison.
+
+POURQUOI       Aucun outil n'est indispensable seul : chaque information existe à au moins deux endroits.
+E · Pendant le retour
+
+E1 Trop peu d'oxygène pour la boucle CHEMIN COURT
+
+DÉCLENCHEUR  À la station , l'oxygène prévu à l'arrivée par la plaine nord passe sous 32 %.
+ACTION       La TABLETTE recommande le retour par l'aller (déjà connu, un peu plus court) ; le casque recharge ces
+             balises.
+
+POURQUOI     Le chemin de l'aller a déjà été parcouru : aucun obstacle inconnu, temps de retour fiable.
+
+E2 Fin de journée qui approche HEURE LIMITE
+
+DÉCLENCHEUR Retards cumulés : l'arrivée prévue dépasse 16:00.
+
+ACTION       Le casque affiche l'heure du coucher (17:58) et la chute de température prévue ; l'habitat peut envoyer
+             le rover pour raccourcir la fin du trajet.
+
+POURQUOI     Après le coucher du soleil, la température chute vers -80 °C et la visibilité disparaît.
+PARTIE 4 · LES RÈGLES
+
+Les seuils qui font changer les couleurs
+
+MESURE                    VERT           ORANGE                               ROUGE
+
+O prévu à l'arrivée      35 %          30 à 35 %                            < 30 % : retour immédiat
+Marge sur la zone de    > 15 min       0 à 15 min                           Hors zone : demi-tour
+retour
+Horaire                 Retard < 10    10 à 25 min                          > 25 min ou heure limite
+                        min                                                 dépassée
+Pente (avec charge)     < 12°          12 à 20°                             > 20° : passage interdit
+Météo spatiale          Aucune alerte  Éruption observée, non dirigée vers  Particules attendues : abri
+                                       Mars
+Poussière / visibilité  Opacité < 1    1 à 1,5 ou rafales                   > 1,5 ou visibilité < 50 m
+Distance au binôme      < 15 m         15 à 30 m                            > 30 m ou contact perdu
+Radio avec l'habitat    Contact        Coupure < 30 min                     Coupure > 30 min : retour
+
+Les cinq règles d'or de l'équipage
+
+1. Jamais seul : on sort, on travaille et on rentre en binôme.
+2. Toujours dans la zone de retour à pied, même avec un rover : s'il tombe en panne, il faut pouvoir rentrer à pied.
+
+   Les missions Apollo appliquaient déjà cette règle avec leur rover lunaire.
+3. La réserve d'oxygène ne se négocie pas : 30 % à l'arrivée, quoi qu'il arrive.
+4. Les heures limites ne reculent jamais : on peut partir plus tôt, jamais plus tard.
+5. Chaque info existe deux fois : casque et tablette, tablette et binôme, tablette et papier.
+PARTIE 5 · VERSION JURY
+
+Une interface plus simple et plus vivante
+
+La logique de sécurité ne change pas. Ce qui change, c'est l'habillage : moins de listes, plus de
+jauges et de cartes ; moins de texte, plus de formes et de retours immédiats en vert, orange ou
+rouge. Le ton reste celui d'un vrai outil de mission, pas d'un jeu.
+
+1 · Préparer la sortie avec des cartes et trois jauges ÉCRAN HABITAT
+
+EVA PLANNER · PRÉPARER LA SORTIE          Glissez les stations sur la carte
+
+                                  CHOISIR LA MISSION
+
+                                  SCIENCE          SCIENCE                                         REPÉRAGE
+
+                                  Mission          Mission                                         Mission
+                                  carbonates       argiles                                         terrain
+
+                                  Traces d'eau     Delta, à                                        Tester le
+                                  ancienne         l'ouest                                         sable
+
+                                  MATÉRIEL          Spectromètre 6 kg                              Tubes 4 kg
+                                                   + Station bonus
+                                    Foreuse 12 kg
+                                    Caméra 5 kg
+
+                                  Temps            O arrivée                                       Poids
+                                  6 h 10           27 %                                            22 kg
+
+                                  Trop lourd ou trop long : retirez la station bonus ou la
+                                  foreuse.
+
+                                    Plan refusé · réserve d'oxygène non
+                                                  respectée
+
+Ce qui change. Trois cartes de mission au lieu d'un menu. Trois jauges (temps, oxygène à l'arrivée, poids) qui
+réagissent dès qu'on ajoute un outil ou une station. Ici, avec la station bonus, l'oxygène à l'arrivée tombe à 27
+% : le plan est refusé. On retire la station bonus, la jauge repasse au vert. Le jury comprend la règle de sécurité
+en deux secondes. Déjà dans le prototype v3 (bouton « Préparation »).
+2 · La tablette en mode « station » TABLETTE
+
+STATION  · CARBONATES                   28 MIN  DÉCOUVERTE                        ANALYSE RAPIDE
+
+3 tâches, puis on repart                        Différent de la carte orbitale
+
+       Spectromètre                             Le spectromètre voit une signature absente des cartes
+                                                CRISM à cet endroit. Photo et position enregistrées.
+
+Forage 30 cm · 18 cm                            Étudier 15 min : O arrivée 33 % 
+
+Échantillon scellé                               Garder pour une prochaine sortie
+
+J'ai trouvé quelque chose d'inhabituel          Si l'arrêt faisait passer l'oxygène sous 30 %, le premier bouton
+                                                serait grisé.
+
+Ce qui change. En station, la carte disparaît : il ne reste que les tâches, en gros boutons qui se remplissent en
+vert. On regarde les icônes, on ne lit pas : c'est fait pour des gants pressurisés. Le bouton « J'ai trouvé quelque
+chose d'inhabituel » crée l'effet découverte, tout en vérifiant la réserve d'oxygène avant d'accepter.
+
+3 · Le casque : un chemin lumineux et le moins de texte possible CASQUE
+
+         NE 052°                                                         NE 039°
+
+O 97 %                                          O 66 %                             Pente 14°
+                                                                                  petits pas
+
+Habitat                    690 m                Habitat
+
+4 min                                           1 h 41
+
+Ce qui change. Un chemin lumineux est tracé sur le sol devant les pieds, avec un halo qui pulse sur la
+prochaine balise, comme un GPS en réalité augmentée. Le temps de retour devient une flèche qui pointe vers
+l'habitat. Quand tout va bien, la visière est presque vide (à gauche). Quand il faut faire attention, le bord de la
+
+visière s'allume en orange (à droite) : ça attire l'oeil sans jamais cacher le terrain, ce qui est plus sûr qu'une
+animation qui traverse la vue. Déjà dans le prototype v3 (bouton « Casque »).
+4 · Le suivi depuis l'habitat, avec le bouton « Simuler un imprévu » ÉCRAN HABITAT
+
+EVA PLANNER · SUIVI EN DIRECT · EVA-03                                              Mode démonstration
+
+                                               ÉQUIPAGE                                                    O 69 % 
+                                                                                                           O 71 % 
+                                               EV1 Amina                                                   Station 
+                                               EV2 Karim
+                                               Position                                                       35 % 
+                                               Arrivée prévue
+
+                                               MESSAGES
+
+                                               EV1 : carbonates confirmés au
+                                               spectromètre
+
+                                                   Habitat : beau travail, vous êtes dans
+                                                   l'horaire
+
+                                               Prenez votre temps Attention rocher
+                                               Rentrez plus tôt
+
+                                                       Simuler un imprévu
+
+                                               Éruption solaire Tempête Obstacle
+                                               Message
+
+Ce qui change. Une mini-carte avec les deux astronautes qui avancent, et une messagerie avec des réponses
+toutes prêtes au lieu d'un tableau de données. Le gros bouton rouge sert à la démo : on déclenche une
+éruption solaire et l'alerte apparaît en direct sur le casque (bord rouge, chemin rouge vers l'abri) et sur la
+
+tablette, avec le rover qui part. Déjà dans le prototype v3, avec l'avance rapide (×1, ×10, ×60, ×300) pour jouer
+une sortie de 5 heures en une minute.
+
+Le pitch en 6 temps (3 minutes)
+
+# MOMENT       ÉCRAN             CE QUE VOUS DITES ET MONTREZ                                              DURÉE
+                 HABITAT
+1 La veille                      « Je choisis la mission carbonates. J'ajoute la station bonus : la jauge  40 s
+                                 d'oxygène passe au rouge. Je la retire : c'est validé. »
+
+2 Le briefing  HABITAT           « Le lendemain, météo et radiations au vert, soleil à l'heure réelle de   15 s
+
+                                 Mars : GO. »
+
+3 La marche    CASQUE            « En marche, je suis le chemin lumineux. Je vois mon oxygène et la        30 s
+
+                                 flèche vers l'habitat. » (avance rapide ×60)
+
+4 La station   TABLETTE          « Station 2 : trois gros boutons, je fore. Je consomme plus que prévu : 30 s
+                                 l'heure limite se recalcule toute seule. »
+
+5 L'imprévu     HABITAT          « Alerte NASA : éruption solaire. Mon coéquipier déclenche l'alerte. Mon 35 s
+                                 casque passe au rouge, me guide par le chemin le plus court, et le rover
+               CASQUE            vient à ma rencontre. »
+
+6 Le débriefing HABITAT          « De retour, la carte est mise à jour : le sable était plus ferme que prévu. 30 s
+                                 La prochaine sortie sera encore plus sûre. Six types de données NASA,
+                                 trois écrans, une priorité : revenir. »
+Ce qui reste à construire pendant le hackathon
+
+ÉLÉMENT                                          ÉTAT            À FAIRE
+                                                   PROTOTYPE V3
+Préparation par jauges (temps, O, poids)           PROTOTYPE V3  Ajouter les cartes de mission et le glisser-déposer
+                                                   PROTOTYPE V3  des stations.
+Casque : chemin lumineux, halo, flèche habitat,    PROTOTYPE V3
+bord de visière                                    MAQUETTE      Brancher le vrai relief NASA.
+Simulation de sortie + avance rapide               PARTIEL
+                                                   BONUS         Ajouter le retour par la plaine nord (aujourd'hui retour
+Bouton imprévu (éruption, tempête, obstacle,                     par l'aller).
+message)
+Tablette en mode station + bouton découverte                     Ajouter panne de foreuse et coéquipier blessé si le
+                                                                 temps le permet.
+Messagerie et mini-carte de suivi
+                                                                 Écran 2D séparé, ouvrable sur un téléphone pendant
+Profil d'astronaute (géologue, médecin...)                       la démo.
+
+                                                                 Le suivi existe ; ajouter la fenêtre de messages avec
+                                                                 réponses prêtes.
+
+                                                                 Seulement s'il reste du temps à la fin.
+
+Dossier workflow EVA Planner · NASA Space Apps 2026 · Simulations produites sur un terrain de démonstration ; équipage, numéro de sol et
+valeurs de combinaison fictifs mais réalistes. La dose moyenne de 0,67 mSv par sol correspond à l'ordre de grandeur mesuré par l'instrument
+RAD de Curiosity.
+

@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?><metadata>
+  <idinfo>
+    <citation>
+      <citeinfo>
+        <origin>NASA-JPL</origin>
+        <origin>USGS</origin>
+        <origin>Advanced Laboratory for Landing Site Terrain Analysis and Reconnaisance</origin>
+        <origin>German Aerospace Center</origin>
+        <pubdate>20160531</pubdate>
+        <title>MRO CTX, DEM InSight</title>
+        <geoform>raster digital data</geoform>
+        <othercit>Golombek, M., Kipp, D., Warner, N. et al. Space Sci Rev (2017) 211: 5. </othercit>
+        <onlink>https://doi.org/10.1007/s11214-016-0321-9</onlink>
+      </citeinfo>
+    </citation>
+    <descript>
+      <abstract>This is a Digital Elevation Model mosaic of the InSight Landing Site. It was created by creating individual DEMs from CTX, HiRISE, and HRSC stereo image pairs then merging them together with the Aimes Stereo Pipeline.</abstract>
+      <purpose>These data were created in support of landing site selection for the InSight landing site. </purpose>
+    </descript>
+    <timeperd>
+      <timeinfo>
+        <rngdates>
+          <begdate>20100101</begdate>
+          <enddate>20160101</enddate>
+        </rngdates>
+      </timeinfo>
+      <current>ground condition</current>
+    </timeperd>
+    <status>
+      <progress>Complete</progress>
+      <update>None planned</update>
+    </status>
+    <spdom>
+      <bounding>
+        <westbc>133.9355632625281</westbc>
+        <eastbc>137.27594302443492</eastbc>
+        <northbc>5.069785465912203</northbc>
+        <southbc>3.7285723796920434</southbc>
+      </bounding>
+    </spdom>
+    <keywords>
+      <theme>
+        <themekt>ISO 19115 Topic Category</themekt>
+        <themekey>biota</themekey>
+      </theme>
+      <theme>
+        <themekt>None</themekt>
+        <themekey>InSight</themekey>
+        <themekey>Landing Site</themekey>
+        <themekey>Elysium</themekey>
+        <themekey>DEM</themekey>
+        <themekey>Mosaic</themekey>
+      </theme>
+    </keywords>
+    <accconst>None.  Please see 'Distribution Info' for details.</accconst>
+    <useconst> Unless otherwise stated, all data, metadata and related materials are considered to satisfy the quality standards relative to the purpose for which the data were collected. Although these data and associated metadata have been reviewed for accuracy and completeness and approved for release by the data provider, no warranty expressed or implied is made regarding the display or utility of the data on any other system or for general or scientific purposes, nor shall the act of distribution constitute any such warranty.</useconst>
+    <ptcontac>
+      <cntinfo>
+        <cntorgp>
+          <cntorg>NASA-JPL Advanced Laboratory for Landing Site Terrain Analysis and Reconnaisance</cntorg>
+          <cntper>Marshall Trautman</cntper>
+        </cntorgp>
+        <cntaddr>
+          <addrtype>Mailing and Physical</addrtype>
+          <address>4800 Oak Grove Dr.</address>
+          <city>Pasadena</city>
+          <state>CA</state>
+          <postal>91109</postal>
+        </cntaddr>
+        <cntvoice>626-993-0331</cntvoice>
+      </cntinfo>
+    </ptcontac>
+    <datacred>Research described in the paper associated with this data was partially done by the InSight Project, Jet Propulsion
+Laboratory, California Institute of Technology, under a contract with the National Aeronautics and Space
+Administration. Production of derived data products and support for the Council of Atmospheres and the
+Council of Terrains was provided by the InSight Project. The German Aerospace Center (DLR) supported
+the production of HRSC mosaics. We thank S. Kannan, L. Maki, K. Smyth, D. Hernandez, V. Carranza,
+E. Bondi, R. Domholdt, A. Davis, M. Wray, S. Melady, W. Painter, C. Hundal, and M. Bouchard for help
+processing data and maps. We also thank B. Knapmeyer-Endrun, V. Ansan Mangold, K. Herkenhoff and C.
+Dundas for comments on an earlier draft. M. Grott provided helpful discussions on the interaction of the mole
+with subsurface rocks. This paper is InSight Contribution Number 17.</datacred>
+  </idinfo>
+  <dataqual>
+    <attracc>
+      <attraccr/>
+    </attracc>
+    <logic/>
+    <complete/>
+    <lineage>
+      <procstep>
+        <procdesc/>
+        <procdate/>
+      </procstep>
+    </lineage>
+  </dataqual>
+  <spdoinfo>
+    <direct>Raster</direct>
+    <rastinfo>
+      <rasttype>Grid Cell</rasttype>
+      <rowcount>3975</rowcount>
+      <colcount>9900</colcount>
+      <vrtcount>1</vrtcount>
+    </rastinfo>
+  </spdoinfo>
+  <spref>
+    <horizsys>
+      <planar>
+        <mapproj>
+          <mapprojn>Equirectangular</mapprojn>
+          <equirect>
+            <stdparll>0</stdparll>
+            <longcm>0</longcm>
+            <feast>0</feast>
+            <fnorth>0</fnorth>
+          </equirect>
+        </mapproj>
+        <planci>
+          <plance>row and column</plance>
+          <coordrep>
+            <absres>20.0</absres>
+            <ordres>20.0</ordres>
+          </coordrep>
+          <plandu>meters</plandu>
+        </planci>
+      </planar>
+      <geodetic>
+        <horizdn>D_MARS</horizdn>
+        <ellips>MARS_localRadius</ellips>
+        <semiaxis>3396190.0</semiaxis>
+        <denflat>1</denflat>
+      </geodetic>
+    </horizsys>
+  </spref>
+  <distinfo>
+    <distrib>
+      <cntinfo>
+        <cntperp>
+          <cntper/>
+        </cntperp>
+        <cntaddr>
+          <addrtype/>
+          <address/>
+          <city/>
+          <state/>
+          <postal/>
+        </cntaddr>
+        <cntvoice/>
+      </cntinfo>
+    </distrib>
+  </distinfo>
+  <metainfo>
+    <metd>20180406</metd>
+    <metc>
+      <cntinfo>
+        <cntorgp>
+          <cntorg>NASA Solare System Treks Team</cntorg>
+          <cntper>Marshall Trautman</cntper>
+        </cntorgp>
+        <cntaddr>
+          <addrtype>Mailing and Physical</addrtype>
+          <address>4800 Oak Grove Dr</address>
+          <city>Pasadena</city>
+          <state>CA</state>
+          <postal>91109</postal>
+        </cntaddr>
+        <cntvoice>6269930331</cntvoice>
+      </cntinfo>
+    </metc>
+    <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+    <metstdv>FGDC-STD-001-1998</metstdv>
+  </metainfo>
+</metadata>

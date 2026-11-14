@@ -1,0 +1,15 @@
+# Credentials - ne jamais commit
+nasa/account.txt
+account.txt
+
+# macOS junk
+__MACOSX/
+.DS_Store
+Thumbs.db
+
+# Verrous ESRI temporaires
+*.sr.lock
+
+# Donnees raster lourdes (>2 Go, depasse la limite GitHub de 100 Mo/fichier)
+*.tif
+*.tiff
