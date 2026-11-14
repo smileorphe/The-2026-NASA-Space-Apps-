@@ -1,0 +1,16 @@
+{
+  "obstacle": {
+    "title": "Obstacle sur le tracé W3 → B",
+    "options": [
+      { "id": "detour", "label": "Détour prédéfini", "detail": "route_detour.geojson · +8 min", "allerRestant": 15, "retour": 40, "keepObservation": true },
+      { "id": "back", "label": "Retour à l’habitat", "detail": "Objectif scientifique abandonné", "allerRestant": 0, "retour": 22, "keepObservation": false }
+    ]
+  },
+  "storm": {
+    "title": "Tempête de poussière locale (fictive)",
+    "options": [
+      { "id": "go", "label": "Poursuivre vers B", "detail": "Vitesse simulée × 0,6", "allerRestant": 12, "retour": 67, "keepObservation": true },
+      { "id": "back", "label": "Retour immédiat", "detail": "Tracé connu · vitesse × 0,6", "allerRestant": 0, "retour": 37, "keepObservation": false }
+    ]
+  }
+}

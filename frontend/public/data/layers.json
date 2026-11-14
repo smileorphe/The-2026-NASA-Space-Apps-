@@ -1,0 +1,22 @@
+{
+  "projection": "[à compléter au Data Gate]",
+  "extent": [[-250, -250], [1900, 1150]],
+  "layers": [
+    {
+      "id": "topo", "name": "Topographie · DTM", "source": "DTM · [HiRISE ou MOLA]", "date": "[date]", "resolution": "[résolution]",
+      "projection": "[projection]", "kind": "obs", "tiles": null, "footprint": [[-200, -200], [1850, -200], [1850, 1100], [-200, 1100]]
+    },
+    {
+      "id": "crism", "name": "Minéralogie · CRISM", "source": "CRISM · [identifiant produit]", "date": "[date]", "resolution": "[résolution]",
+      "projection": "[projection]", "kind": "der", "tiles": null, "footprint": [[1150, 600], [1800, 560], [1850, 1080], [1220, 1110]]
+    },
+    {
+      "id": "imagery", "name": "Imagerie", "source": "HiRISE / CTX · [identifiant]", "date": "[date]", "resolution": "[résolution]",
+      "projection": "[projection]", "kind": "obs", "tiles": null, "footprint": null
+    },
+    {
+      "id": "route", "name": "Tracé", "source": "route_aller.geojson · équipe", "date": "v1", "resolution": "—",
+      "projection": "[projection]", "kind": "der", "tiles": null, "footprint": null
+    }
+  ]
+}

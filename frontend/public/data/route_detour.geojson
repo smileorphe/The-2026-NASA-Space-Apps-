@@ -1,0 +1,15 @@
+{
+  "type": "FeatureCollection",
+  "name": "route_detour",
+  "crs_note": "MOCK — même repère que route_aller. Le premier point est sur le tracé aller (avant l'obstacle), le dernier est B.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": "route_detour", "obstacle": [1380, 785] },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[1215, 662], [1400, 660], [1590, 820], [1642, 973]]
+      }
+    }
+  ]
+}

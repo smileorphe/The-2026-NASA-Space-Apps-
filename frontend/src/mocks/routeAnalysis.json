@@ -1,0 +1,17 @@
+{
+  "distance_m": 1920,
+  "elevation_gain_m": 38,
+  "elevation_loss_m": 12,
+  "max_slope_deg": 11,
+  "profile": [
+    { "d": 0, "z": -2540.0 }, { "d": 160, "z": -2543.0 }, { "d": 330, "z": -2546.0 }, { "d": 520, "z": -2541.0 },
+    { "d": 700, "z": -2537.0 }, { "d": 900, "z": -2540.0 }, { "d": 1220, "z": -2527.0 }, { "d": 1400, "z": -2530.0 },
+    { "d": 1650, "z": -2518.0 }, { "d": 1920, "z": -2514.0 }
+  ],
+  "segments": [
+    { "from": "A", "to": "W1", "length_m": 330, "slope_deg": 3 },
+    { "from": "W1", "to": "W2", "length_m": 370, "slope_deg": 5 },
+    { "from": "W2", "to": "W3", "length_m": 520, "slope_deg": 9 },
+    { "from": "W3", "to": "B", "length_m": 700, "slope_deg": 11 }
+  ]
+}

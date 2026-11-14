@@ -1,0 +1,20 @@
+{
+  "type": "FeatureCollection",
+  "name": "route_aller",
+  "crs_note": "MOCK — coordonnées en mètres dans un repère local (x = est, y = nord, origine = habitat A). À remplacer par le tracé validé au Scope & Data Gate.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": "route_aller", "version": "v1-mock" },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[0, 0], [314, 102], [643, 269], [1075, 560], [1642, 973]]
+      }
+    },
+    { "type": "Feature", "properties": { "id": "A", "name": "Habitat" }, "geometry": { "type": "Point", "coordinates": [0, 0] } },
+    { "type": "Feature", "properties": { "id": "W1", "name": "W1" }, "geometry": { "type": "Point", "coordinates": [314, 102] } },
+    { "type": "Feature", "properties": { "id": "W2", "name": "W2" }, "geometry": { "type": "Point", "coordinates": [643, 269] } },
+    { "type": "Feature", "properties": { "id": "W3", "name": "W3" }, "geometry": { "type": "Point", "coordinates": [1075, 560] } },
+    { "type": "Feature", "properties": { "id": "B", "name": "Affleurement" }, "geometry": { "type": "Point", "coordinates": [1642, 973] } }
+  ]
+}
