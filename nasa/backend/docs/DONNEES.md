@@ -235,10 +235,14 @@ soleil paraît chaude), et la résolution est de 100 m. C'est un indice qualitat
 | Majority MT | 96 | 6,7 % | 48 % | peu carbonatée |
 | Majority sand | 195 | 3,9 % | 39 % | sable (dunes) : à éviter pour un prélèvement de roche |
 
-⚠️ **La signification exacte de « MC » et « MT », et la règle de « Majority »**, ne sont écrites nulle part dans les
-fichiers fournis. Les chiffres ci-dessus montrent que MC est la classe riche en carbonate. Une hypothèse plausible
-est « marginal carbonate », mais **elle n'est pas confirmée** : il faut la vérifier dans l'article de Zastrow & Glotch
-(2021) et ses données supplémentaires avant de l'écrire dans le pitch.
+**Signification des classes** (trouvée par Jeremi dans l'article, voir `pipeline/README.md`) : Zastrow & Glotch 2021,
+GRL, doi:10.1029/2020GL092365 : « Each pixel was mapped as majority light-toned, majority sand, or a mixture of
+light-toned and sand. The majority light-toned units were then split into the Marginal Carbonates and the Mottled
+Terrain […] two other features that do not fall into any of these three categories […] have been masked out. »
+Donc **MC = Marginal Carbonates**, **MT = Mottled Terrain** (terrain marbré), « Mixture » = mélange clair / sable,
+« Other » = éléments masqués par les auteurs. Les sigles eux-mêmes ne sont pas écrits dans l'article : la
+correspondance est déduite (schéma de classes, image 040FF, autrice du fichier) et concorde avec les chiffres
+ci-dessus (MC = classe la plus carbonatée).
 
 ### Traitement (`app/gate.py`)
 
@@ -477,11 +481,11 @@ Version 1 abandonnée : la cible n'avait que 8 % de carbonate (53 % d'argiles).
 ## 10 bis. Réponses aux questions de l'équipe (avant P0)
 
 **1. Que signifient « MT » et « MC », et comment ont été obtenues les classes « Majority » ?**
-Le shapefile ne contient que les noms de classe (`Majority MC`, `Majority MT`, `Majority sand`, `Mixture`, `Other`),
-sans définition ni seuil. Ce qu'on peut affirmer avec les données : MC est la classe la plus carbonatée (28,5 % en
-médiane), sand la moins (3,9 %). « Majority » semble désigner un polygone dominé par une classe, « Mixture » un
-mélange, mais **la méthode et le seuil ne sont pas documentés** dans les fichiers fournis. Action : lire l'article
-(GRL 2021) et ses suppléments, ou écrire à l'autrice. En attendant, ne pas développer les sigles dans le pitch.
+**Réponse (via l'article, trouvée par Jeremi)** : chaque pixel a été classé « majoritairement clair », « majoritairement
+sable » ou « mélange » ; les unités claires ont ensuite été séparées en **Marginal Carbonates (MC)** et **Mottled
+Terrain (MT)** ; « Other » = éléments masqués. Les données le confirment : MC est la classe la plus carbonatée
+(28,5 % en médiane), sable la moins (3,9 %). Le seuil numérique de « majoritairement » n'est pas donné dans le passage
+cité.
 
 **2. Pourquoi seule 040ff a-t-elle des régions ? 047a3 et 05c5e ont-elles été traitées ?**
 Le dépôt Zenodo ne contient une ROI que pour 040ff (`data_roi.zip`). Mais **les trois observations ont été traitées**

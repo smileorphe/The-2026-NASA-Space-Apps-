@@ -728,7 +728,7 @@ Les tests qui ont besoin du DTM ou des tuiles sont **ignorés automatiquement** 
 | # | Tâche | Bloquant ? | Responsable |
 |---|---|---|---|
 | 1 | Côté front : bouton « Simuler un imprévu » qui appelle `POST /incidents/evaluate` avec la position de l'astronaute, et affichage du spectre et de la composition du point B | Recommandé (fort pour le jury) | Front / 3D |
-| 1 bis | Faire confirmer par l'équipe la signification des classes « MT » et « MC » du shapefile (voir `docs/DONNEES.md` §5) | Avant le pitch | Données |
+| 1 bis | Aligner backend et pipeline de Jeremi : un seul jeu de points A / B, une seule autonomie (120 ou 145 min), une seule vitesse (2,5 ou 3,3 km/h), un seul modèle de coût | **Oui** | Équipe |
 | 2 | Supprimer `data/data_models.zip` (6,8 Go, déjà extrait) : le disque est presque plein | Urgent | Toi |
 | 3 | Relancer `fetch_donki.py --refresh` avec une clé NASA pour compléter la classe d'éruption | Non | Données |
 | 4 | Three.js en local (`importmap`) pour une vue 3D 100 % hors ligne | Avant la démo | 3D |
