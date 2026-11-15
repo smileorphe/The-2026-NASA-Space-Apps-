@@ -1,0 +1,49 @@
+{
+  "type": "FeatureCollection",
+  "name": "EVA-03 Jezero (tracé provisoire)",
+  "metadata": {
+    "crs": "Mars 2000 sphère IAU, longitude Est, latitude planétocentrique, degrés",
+    "statut": "PROVISOIRE : habitat placé sur un terrain plat (pente < 4°) du DTM HiRISE ; point B placé dans un amas de la ROI carbonates marginaux (Zastrow & Glotch 2021). À valider par l'équipe et par les cartes d'abondance (data_models.zip).",
+    "zone": "3x3 km centrée sur 18.5456°N / 77.3628°E"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"role": "habitat", "id": "A", "nom": "Habitat"},
+      "geometry": {"type": "Point", "coordinates": [77.38538, 18.52298]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"role": "waypoint", "id": "WP1", "nom": "Plaine sud", "ordre": 1},
+      "geometry": {"type": "Point", "coordinates": [77.38130, 18.52700]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"role": "waypoint", "id": "WP2", "nom": "Approche des affleurements", "ordre": 2},
+      "geometry": {"type": "Point", "coordinates": [77.38150, 18.53650]}
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "role": "point_b", "id": "B", "nom": "Affleurement carbonaté (cible)",
+        "observation_min": 15,
+        "texte_scientifique": "Les données minéralogiques disponibles signalent une signature compatible avec la présence de carbonates dans cette zone. Ces minéraux peuvent renseigner sur d'anciennes interactions avec l'eau et sur l'habitabilité passée. Leur présence ne constitue pas une preuve de vie."
+      },
+      "geometry": {"type": "Point", "coordinates": [77.38035, 18.54224]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"role": "aller", "nom": "Aller A → B"},
+      "geometry": {"type": "LineString", "coordinates": [
+        [77.38538, 18.52298], [77.38130, 18.52700], [77.38150, 18.53650], [77.38035, 18.54224]
+      ]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"role": "retour", "nom": "Retour B → A par l'est"},
+      "geometry": {"type": "LineString", "coordinates": [
+        [77.38035, 18.54224], [77.38500, 18.53800], [77.38700, 18.53000], [77.38538, 18.52298]
+      ]}
+    }
+  ]
+}

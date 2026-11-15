@@ -1,0 +1,74 @@
+[
+  {
+    "id": "dtm",
+    "nom": "Relief HiRISE 1 m (Mars 2020 TRN DTM mosaic)",
+    "fournisseur": "USGS Astrogeology / NASA JPL / Univ. of Arizona (HiRISE)",
+    "url": "https://astrogeology.usgs.gov/search/map/mars_2020_terrain_relative_navigation_hirise_dtm_mosaic",
+    "resolution": "1 m",
+    "usage": "Altitude, dénivelé et pentes du tracé",
+    "statut": "réel"
+  },
+  {
+    "id": "ortho",
+    "nom": "Orthomosaïque HiRISE 25 cm (Mars 2020 TRN)",
+    "fournisseur": "USGS Astrogeology / NASA JPL / Univ. of Arizona (HiRISE)",
+    "url": "https://astrogeology.usgs.gov/search/map/mars_2020_terrain_relative_navigation_hirise_orthorectified_image_mosaic",
+    "resolution": "25 cm",
+    "usage": "Fond de carte et repérage visuel",
+    "statut": "réel"
+  },
+  {
+    "id": "carbonates_roi",
+    "nom": "Région carbonates marginaux (CRISM FRT 040FF)",
+    "fournisseur": "Zastrow & Glotch (2021), Distinct Lithologies in Jezero Crater, Mars, GRL",
+    "url": "https://zenodo.org/records/4699583",
+    "resolution": "~18 m (CRISM)",
+    "usage": "Choix du point B (Scope & Data Gate)",
+    "statut": "réel ; signature au point B à confirmer avec data_models.zip"
+  },
+  {
+    "id": "geologie",
+    "nom": "Carte géologique Jezero / Nili Fossae (SIM 3464)",
+    "fournisseur": "USGS",
+    "url": "https://pubs.usgs.gov/publication/sim3464",
+    "resolution": "1:75 000",
+    "usage": "Contexte géologique",
+    "statut": "réel"
+  },
+  {
+    "id": "meteo_spatiale",
+    "nom": "Flux de particules solaires (SEP) du 9 mai 2024",
+    "fournisseur": "NASA CCMC DONKI",
+    "url": "https://api.nasa.gov/",
+    "resolution": "événement",
+    "usage": "Imprévu « éruption solaire » rejoué hors ligne",
+    "statut": "événement réel rejoué comme simulation (non mesuré à Jezero)"
+  },
+  {
+    "id": "meteo",
+    "nom": "Météo MEDA (température air et sol, pression, vent)",
+    "fournisseur": "NASA Mars 2020 Perseverance, PDS Atmospheres Node",
+    "url": "https://atmos.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/",
+    "resolution": "mesures ~1 Hz, résumées par heure solaire locale",
+    "usage": "Bandeau météo et critère GO / NO-GO",
+    "statut": "réel, mesuré à Jezero (sols passés rejoués, pas une prévision)"
+  },
+  {
+    "id": "radiations",
+    "nom": "Débit de dose de surface RAD",
+    "fournisseur": "NASA MSL Curiosity, PDS PPI Node (MSL-M-RAD-3-RDR-V1.0)",
+    "url": "https://pds-ppi.igpp.ucla.edu/data/MSL-M-RAD-3-RDR-V1.0/",
+    "resolution": "une mesure toutes les ~16 min",
+    "usage": "Dose estimée de la sortie",
+    "statut": "réel, mesuré à Gale (pas Jezero) : ordre de grandeur"
+  },
+  {
+    "id": "autonomie",
+    "nom": "Budget d'autonomie",
+    "fournisseur": "EVA Planner",
+    "url": null,
+    "resolution": null,
+    "usage": "Marge = autonomie − (aller + observation + retour)",
+    "statut": "simulé (modèle pédagogique, pas un modèle physique certifié)"
+  }
+]

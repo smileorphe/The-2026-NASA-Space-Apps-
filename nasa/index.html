@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vue 3D Jezero v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout : scène plein écran, carte titre en haut, console de mission en bas */
+  --glass:rgba(18,14,12,.72); --line:rgba(255,220,190,.16); --ink:#f3e9df; --muted:#c3b2a3;
+  --accent:#ff8a4c; --accent-ink:#1b0f08;
+  --display:"Archivo",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0;background:#0d0a09;color:var(--ink);font:14px/1.45 var(--body);overflow:hidden}
+#app{position:fixed;inset:0}
+canvas{display:block;touch-action:none}
+.card{position:fixed;left:12px;top:12px;max-width:min(380px,calc(100% - 24px));background:var(--glass);border:1px solid var(--line);border-radius:10px;padding:10px 14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.card h1{font:800 17px/1.2 var(--display);margin:0 0 2px}
+.card p{margin:0;color:var(--muted);font-size:12px}
+.chain{font:500 11px var(--mono);color:var(--muted);margin-top:6px}
+.chain b{color:var(--ink);font-weight:500}
+.clock{font:500 12.5px var(--mono);color:var(--accent);margin-top:6px}
+.panel{position:fixed;left:12px;right:12px;bottom:12px;max-width:760px;margin:0 auto;background:var(--glass);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:10px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row label{font:500 12px var(--mono);color:var(--muted);min-width:48px}
+input[type=range]{flex:1;min-width:140px;accent-color:var(--accent)}
+.time{font:500 14px var(--mono);font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+button{font:600 13px var(--body);color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.hud{font:500 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.hud b{color:var(--ink);font-weight:500}
+.legend{display:none;gap:10px;flex-wrap:wrap;font:500 11px var(--mono);color:var(--muted)}
+.legend.show{display:flex}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.lbl{position:fixed;transform:translate(-50%,-120%);font:600 11px var(--body);color:#fff;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);padding:2px 7px;border-radius:99px;white-space:nowrap;pointer-events:none;display:none}
+.lbl.t{border-color:var(--accent);color:var(--accent)}
+#loading{position:fixed;inset:0;display:grid;place-items:center;font:500 13px var(--mono);color:var(--muted);background:#0d0a09;transition:opacity .6s;text-align:center;padding:24px}
+@media (max-width:520px){.card p.long,.chain{display:none}.panel{padding:10px;gap:8px}}
+@media (prefers-reduced-motion:reduce){#loading{transition:none}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div id="app"></div>
+<div class="card">
+  <h1>EVA Planner · Jezero, vue réaliste</h1>
+  <p class="long" id="intro">Relief, textures, rochers et itinéraire préparés par un script Python, affichés avec Three.js et du post-traitement. Terrain de démonstration en attendant les données NASA du hackathon.</p>
+  <div class="chain"><b>Python</b> relief · pentes · textures · A* → <b>Three.js</b> rendu · ombres · effets</div>
+  <div class="clock" id="clock">Heure solaire locale --:--</div>
+</div>
+<div class="lbl" id="lblHab">Habitat</div>
+<div class="lbl t" id="lblTgt">Cible : rebord du cratère</div>
+<div class="panel">
+  <div class="row">
+    <label for="t">Heure</label>
+    <input type="range" id="t" min="4.5" max="19.5" step="0.01" value="7.6">
+    <span class="time" id="tv">07:36</span>
+    <button id="now" type="button">Heure actuelle sur Mars</button>
+  </div>
+  <div class="row">
+    <button id="mOrbit" class="on" type="button">Vue d'ensemble</button>
+    <button id="mAstro" type="button">Vue astronaute</button>
+    <button id="play" type="button" hidden>Pause</button>
+    <button id="speed" type="button" hidden>Vitesse ×4</button>
+    <button id="fx" class="on" type="button">Effets cinéma</button>
+    <button id="slope" type="button">Couche pentes</button>
+  </div>
+  <div class="legend" id="legend"><span><i style="background:#3cc86e"></i><span id="lg0">0–10°</span></span><span><i style="background:#f0d23c"></i><span id="lg1">10–15°</span></span><span><i style="background:#f58228"></i><span id="lg2">15–20°</span></span><span><i style="background:#dc2828"></i><span id="lg3">&gt; 20° interdit</span></span></div>
+  <div class="hud" id="hud">Glissez pour tourner autour du site, pincez ou molette pour zoomer.</div>
+</div>
+<div id="loading">Chargement du relief et des textures…</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+const loading=document.getElementById('loading');
+main().catch(e=>{console.error(e);loading.style.opacity=1;loading.textContent='La vue 3D n’a pas pu démarrer ('+e.message+'). Vérifiez que le navigateur prend en charge WebGL, puis rechargez la page.';});
+
+async function main(){
+/* ---------- Outils ---------- */
+const smooth=t=>{t=Math.min(1,Math.max(0,t));return t*t*(3-2*t);};
+const sstep=(a,b,x)=>smooth((x-a)/(b-a));
+function hash2(i,j){let h=Math.imul(i|0,374761393)+Math.imul(j|0,668265263);h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return (h>>>0)/4294967296;}
+function hash3(i,j,k){return hash2(i+Math.imul(k|0,1442695041),j-Math.imul(k|0,22695477));}
+function vnoise(x,z){const xi=Math.floor(x),zi=Math.floor(z),xf=x-xi,zf=z-zi,u=xf*xf*(3-2*xf),v=zf*zf*(3-2*zf);
+  const a=hash2(xi,zi),b=hash2(xi+1,zi),c=hash2(xi,zi+1),d=hash2(xi+1,zi+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
+function fbm(x,z,o){let s=0,a=.5,f=1,n=0;for(let i=0;i<o;i++){s+=a*vnoise(x*f+i*17.3,z*f-i*9.1);n+=a;a*=.5;f*=2.03;}return s/n;}
+function vnoise3(x,y,z){const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z),xf=x-xi,yf=y-yi,zf=z-zi;const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf),w=zf*zf*(3-2*zf);
+  const L=(a,b,t)=>a+(b-a)*t;const H=(a,b,c)=>hash3(xi+a,yi+b,zi+c);
+  return L(L(L(H(0,0,0),H(1,0,0),u),L(H(0,1,0),H(1,1,0),u),v),L(L(H(0,0,1),H(1,0,1),u),L(H(0,1,1),H(1,1,1),u),v),w);}
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* ---------- Données préparées par Python ---------- */
+const res=await fetch('assets/data.json'); if(!res.ok) throw new Error('données introuvables');
+const data=await res.json();
+const EXT=data.ext, G=data.grid, HALF=EXT/2, ALT0=data.alt0 ?? -2540;
+/* Réglages venant des données (backend/scripts/export_3d.py) plutôt que codés en dur */
+if(data.slope_thresholds_deg){const [a,b,c]=data.slope_thresholds_deg;
+  document.getElementById('lg0').textContent=`0–${a}°`;document.getElementById('lg1').textContent=`${a}–${b}°`;
+  document.getElementById('lg2').textContent=`${b}–${c}°`;document.getElementById('lg3').textContent=`> ${c}° interdit`;}
+if(data.tgt_name)document.getElementById('lblTgt').textContent='Cible : '+data.tgt_name;
+if(data.donnees_reelles)document.getElementById('intro').textContent='Vrai relief HiRISE 1 m et vraie image HiRISE 25 cm de Jezero (zone 3×3 km), rochers détectés sur l’image, itinéraire de l’équipe. Couleurs de la texture : interprétation.';
+const raw=Uint8Array.from(atob(data.h16),c=>c.charCodeAt(0));
+const u16=new Uint16Array(raw.buffer); const H=new Float32Array(G*G);
+for(let k=0;k<G*G;k++)H[k]=data.hmin+u16[k]/65535*(data.hmax-data.hmin);
+function heightAt(x,z){const fx=Math.min(G-1.001,Math.max(0,(x+HALF)/EXT*(G-1))),fz=Math.min(G-1.001,Math.max(0,(z+HALF)/EXT*(G-1)));
+  const i=Math.floor(fx),j=Math.floor(fz),u=fx-i,v=fz-j,a=H[j*G+i],b=H[j*G+i+1],c=H[(j+1)*G+i],d=H[(j+1)*G+i+1];return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
+function slopeDeg(x,z){const e=2;const gx=(heightAt(x+e,z)-heightAt(x-e,z))/(2*e),gz=(heightAt(x,z+e)-heightAt(x,z-e))/(2*e);return Math.atan(Math.hypot(gx,gz))*180/Math.PI;}
+
+/* ---------- Rendu ---------- */
+const app=document.getElementById('app');
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+const PR=Math.min(devicePixelRatio,1.75);
+renderer.setPixelRatio(PR); renderer.setSize(innerWidth,innerHeight);
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.0;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+
+const loader=new THREE.TextureLoader();
+const load=u=>new Promise((ok,ko)=>loader.load(u,ok,undefined,()=>ko(new Error('texture '+u+' introuvable'))));
+const [albedo,normalTex,slopeTex]=await Promise.all([load('assets/albedo.jpg'),load('assets/normal.jpg'),load('assets/slope.png')]);
+const aniso=renderer.capabilities.getMaxAnisotropy();
+albedo.colorSpace=THREE.SRGBColorSpace; slopeTex.colorSpace=THREE.SRGBColorSpace;
+for(const t of [albedo,normalTex,slopeTex])t.anisotropy=aniso;
+
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0xb08060,0.00018);
+const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,.25,40000);
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.maxPolarAngle=Math.PI*.475; controls.minDistance=12; controls.maxDistance=Math.max(2600,EXT*1.3);
+
+/* Ciel martien */
+const skyMat=new THREE.ShaderMaterial({
+  uniforms:{sunDir:{value:new THREE.Vector3(0,1,0)}}, side:THREE.BackSide, depthWrite:false, fog:false,
+  vertexShader:`varying vec3 vDir;void main(){vDir=position;vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_Position=p.xyww;}`,
+  fragmentShader:`uniform vec3 sunDir;varying vec3 vDir;
+  float hash(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+  void main(){vec3 d=normalize(vDir);float se=sunDir.y;
+   float day=smoothstep(-.12,.15,se);float dusk=smoothstep(.35,0.,se)*smoothstep(-.22,0.,se);
+   float h=clamp(d.y,0.,1.);
+   vec3 zen=mix(vec3(.015,.015,.03),vec3(.40,.28,.20),day);
+   vec3 hor=mix(vec3(.04,.035,.045),vec3(.82,.60,.42),day);
+   vec3 col=mix(hor,zen,pow(h,.45));
+   col=mix(col,col*vec3(.7,.66,.72),dusk);
+   float c=max(dot(d,sunDir),0.);
+   col+=vec3(.32,.52,.92)*pow(c,10.)*(.18+1.4*dusk)*smoothstep(-.18,0.,se);
+   col+=vec3(1.,.93,.82)*pow(c,70.)*.35*day;
+   col+=vec3(1.,.97,.9)*smoothstep(.99982,.9999,c)*14.*smoothstep(-.03,.02,se);
+   float night=1.-smoothstep(-.2,-.02,se);
+   col+=vec3(step(.9978,hash(floor(d*420.))))*night*h*.9;
+   if(d.y<0.)col=hor*.55;
+   gl_FragColor=vec4(col,1.);
+   #include <tonemapping_fragment>
+   #include <colorspace_fragment>
+  }`
+});
+const sky=new THREE.Mesh(new THREE.SphereGeometry(20000,48,24),skyMat); sky.frustumCulled=false; sky.renderOrder=-1; scene.add(sky);
+
+/* Texture de micro-détail (grains, cailloux) pour les vues rapprochées */
+function detailTexture(){
+  const N=256,cv=document.createElement('canvas');cv.width=cv.height=N;const g=cv.getContext('2d');const img=g.createImageData(N,N);
+  const per=(x,y,n)=>{const s=N/n;const xi=Math.floor(x/s),yi=Math.floor(y/s),xf=x/s-xi,yf=y/s-yi;const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
+    const Hh=(i,j)=>hash2(((i%n)+n)%n+n*97,((j%n)+n)%n);const a=Hh(xi,yi),b=Hh(xi+1,yi),c=Hh(xi,yi+1),d=Hh(xi+1,yi+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;};
+  const Rr=rng(3);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){let s=0,a=.5,t=0;for(const n of [4,8,16,32,64,128]){s+=a*per(x,y,n);t+=a;a*=.62;}s/=t;
+    let v=.55+.6*s; if(Rr()<.03)v*=.5; const i=(y*N+x)*4; img.data[i]=img.data[i+1]=img.data[i+2]=Math.min(255,v*255);img.data[i+3]=255;}
+  g.putImageData(img,0,0);const tx=new THREE.CanvasTexture(cv);tx.wrapS=tx.wrapT=THREE.RepeatWrapping;tx.anisotropy=aniso;return tx;
+}
+const det=detailTexture();
+
+/* Terrain principal : géométrie depuis la grille Python, texture et normales Python, micro-détail et couche pentes en shader */
+const tGeo=new THREE.PlaneGeometry(EXT,EXT,G-1,G-1); tGeo.rotateX(-Math.PI/2);
+const tp=tGeo.attributes.position; for(let k=0;k<tp.count;k++)tp.setY(k,H[k]); tGeo.computeVertexNormals();
+const overlay={value:0};
+const tMat=new THREE.MeshStandardMaterial({map:albedo,normalMap:normalTex,normalScale:new THREE.Vector2(1.3,1.3),roughness:.95,metalness:0});
+tMat.onBeforeCompile=sh=>{
+  sh.uniforms.detailMap={value:det}; sh.uniforms.overlayMap={value:slopeTex}; sh.uniforms.overlayOpacity=overlay;
+  sh.fragmentShader=sh.fragmentShader
+   .replace('#include <common>','#include <common>\nuniform sampler2D detailMap;uniform sampler2D overlayMap;uniform float overlayOpacity;')
+   .replace('#include <map_fragment>',`#include <map_fragment>
+     float dd=length(vViewPosition);
+     float d1=texture2D(detailMap,vMapUv*520.).r, d2=texture2D(detailMap,vMapUv*70.).r;
+     diffuseColor.rgb*=mix(1.,d1*1.18,1.-smoothstep(20.,220.,dd))*mix(1.,d2*1.18,.55*(1.-smoothstep(250.,1600.,dd)));
+     vec4 ov=texture2D(overlayMap,vMapUv);
+     diffuseColor.rgb=mix(diffuseColor.rgb,ov.rgb,ov.a*overlayOpacity);`);
+};
+const terrain=new THREE.Mesh(tGeo,tMat); terrain.receiveShadow=true; terrain.castShadow=true; scene.add(terrain);
+
+/* Terrain lointain : plaine puis remparts du cratère Jezero dans la brume */
+{const ON=160,S0=.25,OUT=12000;
+ const remap=s=>{const a=Math.abs(s);const v=a<=S0?a/S0*HALF:HALF+(OUT-HALF)*Math.pow((a-S0)/(1-S0),1.8);return Math.sign(s)*v;};
+ const col=new THREE.Color(), P=[],C=[],I=[];
+ for(let j=0;j<=ON;j++)for(let i=0;i<=ON;i++){const x=remap(-1+2*i/ON),z=remap(-1+2*j/ON),r=Math.hypot(x,z),th=Math.atan2(z,x);
+   const rise=sstep(1500,5200,r)*(330+260*fbm(th*3+5,r/2500,4))*(1-.35*sstep(7000,11000,r));
+   const far=sstep(1000,1600,Math.max(Math.abs(x),Math.abs(z)));
+   P.push(x,heightAt(x,z)-.4+far*((fbm(x/700,z/700,5)-.5)*50)+rise+(fbm(x/380,z/380,4)-.5)*40*sstep(1500,3500,r),z);
+   const n=fbm(x/500,z/500,3),rk=sstep(2200,4500,r)*fbm(x/260+4,z/260,3);
+   col.setRGB(.70-.12*n-.22*rk,.47-.08*n-.15*rk,.32-.05*n-.1*rk,THREE.SRGBColorSpace); C.push(col.r,col.g,col.b);}
+ for(let j=0;j<ON;j++)for(let i=0;i<ON;i++){if(i>=ON*(1-S0)/2&&i+1<=ON*(1+S0)/2&&j>=ON*(1-S0)/2&&j+1<=ON*(1+S0)/2)continue;const a=j*(ON+1)+i,b=a+1,c=a+ON+1,d=c+1;I.push(a,c,b,b,c,d);}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('color',new THREE.Float32BufferAttribute(C,3));g.setIndex(I);g.computeVertexNormals();
+ const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,side:THREE.DoubleSide}));m.receiveShadow=true;scene.add(m);
+ // jupe sous le bord du terrain principal
+ const sp=[],si=[],V=(i,j)=>j*G+i,edges=[[],[],[],[]];
+ for(let i=0;i<G;i++){edges[0].push(V(i,0));edges[1].push(V(G-1,i));edges[2].push(V(G-1-i,G-1));edges[3].push(V(0,G-1-i));}
+ for(const e of edges){const base=sp.length/3;e.forEach(k=>{sp.push(tp.getX(k),tp.getY(k)-.05,tp.getZ(k),tp.getX(k),tp.getY(k)-25,tp.getZ(k));});
+   for(let n=0;n<e.length-1;n++){const a=base+n*2;si.push(a,a+1,a+2,a+2,a+1,a+3);}}
+ const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.Float32BufferAttribute(sp,3));sg.setIndex(si);sg.computeVertexNormals();
+ scene.add(new THREE.Mesh(sg,new THREE.MeshStandardMaterial({color:0x7a5038,roughness:1,side:THREE.DoubleSide})));}
+
+/* Rochers : positions et tailles calculées par Python, 3 formes générées (rôle de Blender) */
+function rockGeometry(seed){
+  let g=new THREE.IcosahedronGeometry(1,3); g.deleteAttribute('normal'); g.deleteAttribute('uv'); g=mergeVertices(g);
+  const p=g.attributes.position,R=rng(seed),sx=.8+.5*R(),sy=.45+.35*R(),sz=.8+.5*R(),o=R()*50;
+  for(let k=0;k<p.count;k++){let x=p.getX(k),y=p.getY(k),z=p.getZ(k);
+    const f=1+.42*(vnoise3(x*1.4+o,y*1.4,z*1.4)-.5)+.14*(vnoise3(x*4+o,y*4,z*4)-.5)+.05*(vnoise3(x*9,y*9+o,z*9)-.5);
+    x*=f*sx;y*=f*sy;z*=f*sz; if(y<-.25)y=-.25+(y+.25)*.25; p.setXYZ(k,x,y,z);}
+  g.computeVertexNormals(); return g;
+}
+const rockMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.9,metalness:0});
+{const groups=[[],[],[]];for(const r of data.rocks)groups[r[4]].push(r);
+ const m=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),s=new THREE.Vector3(),p=new THREE.Vector3(),col=new THREE.Color(),Rr=rng(5);
+ groups.forEach((arr,gi)=>{const im=new THREE.InstancedMesh(rockGeometry(31+gi*7),rockMat,arr.length);im.castShadow=true;im.receiveShadow=true;
+   arr.forEach((r,n)=>{const [x,z,sc,rot]=r;s.set(sc,sc,sc);p.set(x,heightAt(x,z)-sc*.18,z);q.setFromEuler(e.set((Rr()-.5)*.4,rot,(Rr()-.5)*.4));
+     m.compose(p,q,s);im.setMatrixAt(n,m);const g=.23+.1*Rr();col.setRGB(g*1.55,g*1.1,g*.88,THREE.SRGBColorSpace);im.setColorAt(n,col);});
+   scene.add(im);});}
+
+/* Habitat */
+const [HX,HZ]=data.hab, habY=heightAt(HX,HZ);
+{const hab=new THREE.Group(),white=new THREE.MeshStandardMaterial({color:0xeeeae4,roughness:.45,metalness:.1}),dark=new THREE.MeshStandardMaterial({color:0x1b2a4a,roughness:.3,metalness:.6});
+ const dome=new THREE.Mesh(new THREE.SphereGeometry(7,48,24,0,Math.PI*2,0,Math.PI/2),white);hab.add(dome);
+ const tube=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,9,24),white);tube.rotation.z=Math.PI/2;tube.position.set(10,1.6,0);hab.add(tube);
+ const d2=new THREE.Mesh(new THREE.SphereGeometry(4,32,16,0,Math.PI*2,0,Math.PI/2),white);d2.position.set(17,0,0);hab.add(d2);
+ for(let i=0;i<4;i++){const pnl=new THREE.Mesh(new THREE.BoxGeometry(6,.15,3),dark);pnl.position.set(-4+i*7,1.2,-14);pnl.rotation.x=-.5;hab.add(pnl);
+   const leg=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,1.2),white);leg.position.set(-4+i*7,.6,-14);hab.add(leg);}
+ hab.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});hab.position.set(HX,habY,HZ);hab.rotation.y=.6;scene.add(hab);}
+
+/* Itinéraire calculé par A* dans Python */
+const pathPts=data.path.map(([x,z])=>new THREE.Vector3(x,heightAt(x,z),z));
+const path3=new THREE.CatmullRomCurve3(pathPts); const PATH_LEN=path3.getLength();
+const dense=path3.getSpacedPoints(1200).map(p=>new THREE.Vector3(p.x,heightAt(p.x,p.z)+1.2,p.z));
+const routeTube=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(dense),1200,1.8,6,false),new THREE.MeshBasicMaterial({color:0xff8a4c,transparent:true,opacity:.85,fog:false}));
+scene.add(routeTube);
+const flags=new THREE.Group(),flagMat=new THREE.MeshStandardMaterial({color:0xff8a4c,emissive:0x5a2008,roughness:.6});
+for(let d=20;d<PATH_LEN;d+=20){const t=d/PATH_LEN,p=path3.getPointAt(t),tg=path3.getTangentAt(t),side=(Math.round(d/20)%2?1:-1)*1.6;
+  const fx=p.x-tg.z*side,fz=p.z+tg.x*side;const f=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,1.3,6),flagMat);f.position.set(fx,heightAt(fx,fz)+.65,fz);f.castShadow=true;flags.add(f);
+  const top=new THREE.Mesh(new THREE.BoxGeometry(.35,.22,.02),flagMat);top.position.copy(f.position).add(new THREE.Vector3(.18,.55,0));flags.add(top);}
+flags.visible=false; scene.add(flags);
+const [TX,TZ]=data.tgt, tY=heightAt(TX,TZ);
+const beacon=new THREE.Mesh(new THREE.CylinderGeometry(.25,.25,14,10),new THREE.MeshBasicMaterial({color:0xff8a4c,transparent:true,opacity:.7,fog:false}));
+beacon.position.set(TX,tY+7,TZ); scene.add(beacon);
+
+/* Lumières */
+const sun=new THREE.DirectionalLight(0xffffff,3); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048); sun.shadow.bias=-.0003;
+scene.add(sun); scene.add(sun.target);
+const hemi=new THREE.HemisphereLight(0xc89070,0x3a2418,.5); scene.add(hemi);
+const amb=new THREE.AmbientLight(0x6070a0,.04); scene.add(amb);
+
+/* Post-traitement : halo lumineux, rendu ACES, étalonnage, vignette, grain */
+const composer=new EffectComposer(renderer); composer.setPixelRatio(Math.min(PR,1.5)); composer.setSize(innerWidth,innerHeight);
+composer.addPass(new RenderPass(scene,camera));
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth/2,innerHeight/2),.22,.55,.9); composer.addPass(bloom);
+composer.addPass(new OutputPass());
+const grade=new ShaderPass({uniforms:{tDiffuse:{value:null},time:{value:0}},
+  vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader:`uniform sampler2D tDiffuse;uniform float time;varying vec2 vUv;
+   void main(){vec3 c=texture2D(tDiffuse,vUv).rgb;
+    c=mix(c,c*vec3(1.04,1.,.95),.7); c=(c-.5)*1.06+.5;
+    float l=dot(c,vec3(.299,.587,.114)); c=mix(vec3(l),c,1.05);
+    c*=mix(.74,1.,smoothstep(.95,.32,length(vUv-.5)));
+    float n=fract(sin(dot(vUv*vec2(1733.,947.)+time*61.,vec2(12.9898,78.233)))*43758.5453);
+    c+=(n-.5)*.022; gl_FragColor=vec4(c,1.);}`});
+composer.addPass(grade);
+let fxOn=true;
+
+/* ---------- Soleil martien (algorithme Mars24, NASA GISS) ---------- */
+const LAT=(data.center_lonlat?data.center_lonlat[1]:18.4)*Math.PI/180, LON_E=data.center_lonlat?data.center_lonlat[0]:77.5, D=Math.PI/180;
+function marsNow(){
+  const jdTT=Date.now()/86400000+2440587.5+69.184/86400, dt=jdTT-2451545;
+  const M=(19.3871+.52402073*dt)*D, aF=270.3871+.524038496*dt;
+  const nuM=(10.691+3e-7*dt)*Math.sin(M)+.623*Math.sin(2*M)+.050*Math.sin(3*M)+.005*Math.sin(4*M)+.0005*Math.sin(5*M);
+  const Ls=((aF+nuM)%360+360)%360, L=Ls*D;
+  const eot=2.861*Math.sin(2*L)-.071*Math.sin(4*L)+.002*Math.sin(6*L)-nuM;
+  const msd=(jdTT-2405522.0028779)/1.0274912517, mtc=((24*msd)%24+24)%24;
+  return {ltst:((mtc+LON_E/15+eot/15)%24+24)%24, dec:Math.asin(.42565*Math.sin(L))+.25*D*Math.sin(L), Ls};
+}
+let state=marsNow(), dec=state.dec;
+const sunDir=new THREE.Vector3();
+function computeSun(ltst){const Hh=(ltst-12)*15*D;
+  sunDir.set(-Math.cos(dec)*Math.sin(Hh), Math.sin(dec)*Math.sin(LAT)+Math.cos(dec)*Math.cos(Hh)*Math.cos(LAT), -(Math.sin(dec)*Math.cos(LAT)-Math.cos(dec)*Math.cos(Hh)*Math.sin(LAT))).normalize();}
+const cA=new THREE.Color(),cB=new THREE.Color();
+function applySun(){
+  const se=sunDir.y,day=sstep(-.12,.15,se),lit=sstep(-.02,.12,se),dusk=sstep(.35,0,se)*sstep(-.22,0,se);
+  skyMat.uniforms.sunDir.value.copy(sunDir);
+  sun.intensity=3.3*lit; cA.setRGB(1,.60,.38); cB.setRGB(1,.93,.84); sun.color.copy(cA).lerp(cB,sstep(0,.45,se));
+  hemi.intensity=.08+.55*day; amb.intensity=.04+.05*(1-day);
+  cA.setRGB(.04,.035,.045); cB.setRGB(.82,.60,.42); scene.fog.color.copy(cA).lerp(cB,day).multiply(new THREE.Color(1-.3*dusk,1-.34*dusk,1-.28*dusk));
+}
+const fmt=h=>{const hh=Math.floor(h),mm=Math.floor((h-hh)*60);return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');};
+const tIn=document.getElementById('t'),tv=document.getElementById('tv'),clock=document.getElementById('clock');
+function setTime(h,fromNow){tIn.value=h;tv.textContent=fmt(h);computeSun(h);applySun();const el=Math.asin(sunDir.y)/D;
+  clock.textContent=(fromNow?'Maintenant sur Mars · ':'Simulation · ')+fmt(h)+' heure solaire locale · soleil '+(el>=0?'+':'')+el.toFixed(0)+'° · Ls '+state.Ls.toFixed(0)+'°';}
+tIn.addEventListener('input',()=>setTime(+tIn.value,false));
+document.getElementById('now').addEventListener('click',()=>{state=marsNow();dec=state.dec;const h=state.ltst;setTime(Math.min(19.5,Math.max(4.5,h)),true);
+  if(h<4.5||h>19.5)clock.textContent='Maintenant sur Mars · '+fmt(h)+' : il fait nuit à Jezero (affichage limité à 04:30–19:30)';});
+setTime(7.6,false);
+
+/* ---------- Modes de vue et couches ---------- */
+let mode='orbit',u=0,playing=true,speeds=[1,4,10],spi=1,yaw=0,pitch=-.1;
+const $=id=>document.getElementById(id), hud=$('hud');
+function setMode(m){mode=m;$('mOrbit').classList.toggle('on',m==='orbit');$('mAstro').classList.toggle('on',m==='astro');
+  $('play').hidden=$('speed').hidden=m!=='astro';controls.enabled=m==='orbit';routeTube.visible=m==='orbit';flags.visible=m==='astro';
+  const sc=sun.shadow.camera;
+  if(m==='astro'){camera.fov=66;sc.left=sc.bottom=-60;sc.right=sc.top=60;sun.shadow.normalBias=.03;yaw=0;pitch=-.1;}
+  else{camera.fov=50;const S=Math.max(1080,HALF*1.05);sc.left=sc.bottom=-S;sc.right=sc.top=S;sun.shadow.normalBias=.8;
+    /* caméra cadrée sur le milieu habitat-cible, recul vers le sud-ouest */
+    const mx=(HX+TX)/2,mz=(HZ+TZ)/2,my=heightAt(mx,mz);
+    camera.position.set(mx-900,my+380,mz+700);controls.target.set(mx,my,mz);hud.textContent='Glissez pour tourner autour du site, pincez ou molette pour zoomer.';}
+  sc.near=1;sc.far=Math.max(4000,EXT*1.6);sc.updateProjectionMatrix();camera.updateProjectionMatrix();}
+$('mOrbit').onclick=()=>setMode('orbit'); $('mAstro').onclick=()=>setMode('astro');
+$('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'Pause':'Marcher';};
+$('speed').onclick=()=>{spi=(spi+1)%speeds.length;$('speed').textContent='Vitesse ×'+speeds[spi];};
+$('fx').onclick=()=>{fxOn=!fxOn;$('fx').classList.toggle('on',fxOn);};
+$('slope').onclick=()=>{const on=overlay.value<.5;overlay.value=on?.85:0;$('slope').classList.toggle('on',on);$('legend').classList.toggle('show',on);};
+setMode('orbit');
+let drag=null;const cv=renderer.domElement;
+cv.addEventListener('pointerdown',e=>{if(mode==='astro'){drag={x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId);}});
+cv.addEventListener('pointermove',e=>{if(drag){yaw-=(e.clientX-drag.x)*.005;pitch=Math.max(-1,Math.min(.9,pitch-(e.clientY-drag.y)*.004));drag={x:e.clientX,y:e.clientY};}});
+cv.addEventListener('pointerup',()=>drag=null); cv.addEventListener('pointercancel',()=>drag=null);
+
+const lblHab=$('lblHab'),lblTgt=$('lblTgt'),v3=new THREE.Vector3();
+function place(lbl,x,y,z){v3.set(x,y,z).project(camera);const vis=v3.z<1&&Math.abs(v3.x)<1.1&&Math.abs(v3.y)<1.1;lbl.style.display=vis?'block':'none';
+  if(vis){lbl.style.left=((v3.x+1)/2*innerWidth)+'px';lbl.style.top=((1-v3.y)/2*innerHeight)+'px';}}
+
+/* ---------- Boucle ---------- */
+const clk=new THREE.Clock(),look=new THREE.Vector3(),fwd=new THREE.Vector3();
+function frame(){
+  const dt=Math.min(clk.getDelta(),.1);
+  if(mode==='astro'){
+    if(playing){u+=dt*1.3*speeds[spi]/PATH_LEN;if(u>=1)u=0;}
+    const p=path3.getPointAt(u),q=path3.getPointAt(Math.min(1,u+6/PATH_LEN)),bob=playing?Math.sin(u*PATH_LEN*2.4)*.03:0;
+    camera.position.set(p.x,heightAt(p.x,p.z)+1.75+bob,p.z);
+    const base=Math.atan2(q.x-p.x,q.z-p.z)+yaw;
+    fwd.set(Math.sin(base)*Math.cos(pitch),Math.sin(pitch),Math.cos(base)*Math.cos(pitch));camera.lookAt(look.copy(camera.position).add(fwd));
+    sun.target.position.copy(camera.position);
+    hud.innerHTML='Parcouru <b>'+(u*PATH_LEN/1000).toFixed(2)+' km</b> / '+(PATH_LEN/1000).toFixed(2)+' km · Altitude <b>'+Math.round(ALT0+p.y)+' m</b> · Pente <b>'+slopeDeg(p.x,p.z).toFixed(0)+'°</b> · Glissez pour regarder autour';
+  } else { controls.update(); sun.target.position.set(0,0,0); }
+  sun.position.copy(sun.target.position).addScaledVector(sunDir,Math.max(2000,EXT));
+  sky.position.copy(camera.position);
+  place(lblHab,HX,habY+16,HZ); place(lblTgt,TX,tY+16,TZ);
+  if(fxOn){grade.uniforms.time.value=clk.elapsedTime%10;composer.render();} else renderer.render(scene,camera);
+  requestAnimationFrame(frame);
+}
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);});
+frame();
+loading.style.opacity=0; setTimeout(()=>loading.remove(),700);
+}
+</script>
+</body>
+</html>

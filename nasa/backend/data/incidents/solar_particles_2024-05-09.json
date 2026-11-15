@@ -1,0 +1,31 @@
+{
+  "id": "solar_particles_2024-05-09",
+  "type": "flux_particules_solaires",
+  "titre": "Flux de particules solaires",
+  "niveau": "rouge",
+  "message": "Flux de particules solaires annoncé. Interrompre la sortie et rejoindre l'habitat ou l'abri le plus proche par le chemin connu.",
+  "action_recommandee": "retour_immediat",
+  "simulation": true,
+  "avertissement": "Événement réel enregistré par la NASA (DONKI), rejoué ici comme scénario de démonstration. Il n'a pas été mesuré à Jezero.",
+  "evenement_reel": {
+    "sepID": "2024-05-09T13:59:00-SEP-001",
+    "eventTime": "2024-05-09T13:59Z",
+    "instruments": [
+      "MODEL: REleASE:ACE/EPAM 15.8-39.8 MeV"
+    ],
+    "eruption_associee": {
+      "activityID": "2024-05-09T08:45:00-FLR-001",
+      "classe_max_notifiee": null,
+      "classe_X": false
+    },
+    "link": "https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30609/-1",
+    "alertes": [
+      "https://ccmc.gsfc.nasa.gov/DONKI/view/Alert/30611/1"
+    ]
+  },
+  "source": {
+    "nom": "NASA DONKI (Space Weather Database Of Notifications, Knowledge, Information)",
+    "url": "https://api.nasa.gov/DONKI/SEP?startDate=2024-05-08&endDate=2024-05-15",
+    "recupere_le": "2026-11-14T21:41:54+00:00"
+  }
+}

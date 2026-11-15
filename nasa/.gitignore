@@ -1,0 +1,10 @@
+.venv/
+backend/data/rad_raw/
+backend/data/meda_raw/
+__pycache__/
+.pytest_cache/
+~$*
+# Tuiles de carte : régénérables avec backend/scripts/make_tiles.py (97 Mo)
+backend/data/tiles/
+# Cubes CRISM (1,6 Go) : dépassent la limite GitHub, à récupérer sur Zenodo 4699583
+data/data_input/
