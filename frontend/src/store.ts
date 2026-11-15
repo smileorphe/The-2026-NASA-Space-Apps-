@@ -10,7 +10,10 @@
 import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { getData } from './data';
+import { getData, loadTerrain } from './data';
+import { withPlan } from './domain/plan';
+import { costField } from './domain/routing';
+import { cellAt, type TerrainGrid } from './domain/terrain';
 import { type Action, type MissionState, defaultParams, deriveView, initialState, reduce } from './domain/mission';
 
 export type Role = 'habitat' | 'tablette' | 'casque';
@@ -21,10 +24,10 @@ type Message =
   | { kind: 'hello' }
   | { kind: 'presence'; role: Role };
 
-// version 3 : durées issues des coûts du terrain ; les états persistés des versions précédentes sont ignorés
+// version 4 : B choisi sur la carte (plan) ; les états persistés des versions précédentes sont ignorés
 const STORAGE_KEY = 'eva-planner';
 export const useMissionStore = create<{ mission: MissionState }>()(
-  persist(() => ({ mission: initialState() }), { name: STORAGE_KEY, version: 3 }),
+  persist(() => ({ mission: initialState() }), { name: STORAGE_KEY, version: 4 }),
 );
 
 /**
@@ -39,7 +42,7 @@ export function initMission() {
     /* stockage indisponible : on part des valeurs par défaut */
   }
   const savedVersion = saved ? (JSON.parse(saved) as { version?: number }).version : undefined;
-  if (savedVersion !== 3) {
+  if (savedVersion !== 4) {
     const data = getData();
     useMissionStore.setState({ mission: initialState(defaultParams(data), data) });
   }
@@ -115,6 +118,34 @@ export function useClock() {
 /** État brut + valeurs dérivées + données statiques. */
 export function useMission() {
   const s = useMissionStore((st) => st.mission);
-  const data = getData();
+  const data = withPlan(getData(), s.plan); // B choisi sur la carte, le cas échéant
   return { s, view: deriveView(s, data), data };
+}
+
+/* --- Terrain (grilles 5 m) : chargé à la demande, partagé par l'inspecteur, le choix de B et les sites candidats --- */
+
+let fieldFromA: { grid: TerrainGrid; field: Float64Array } | null = null;
+
+/** Coût minimal (m de plat) depuis l'habitat A vers chaque cellule ; calculé une fois (Dijkstra). */
+export function costFromA(grid: TerrainGrid): Float64Array {
+  if (fieldFromA?.grid !== grid) {
+    const a = getData().projection.toLonLat(getData().route[0]);
+    fieldFromA = { grid, field: costField(grid, cellAt(grid, a)) };
+  }
+  return fieldFromA.field;
+}
+
+export function useTerrain(): { grid: TerrainGrid | null; error: string | null } {
+  const [state, setState] = useState<{ grid: TerrainGrid | null; error: string | null }>({ grid: null, error: null });
+  useEffect(() => {
+    let alive = true;
+    loadTerrain().then(
+      (grid) => alive && setState({ grid, error: null }),
+      (e: Error) => alive && setState({ grid: null, error: e.message }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return state;
 }

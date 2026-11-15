@@ -4,6 +4,7 @@ import paths
 import route
 import route_analysis
 import slope_tiles
+import terrain_export
 import vectors
 
 if __name__ == "__main__":
@@ -13,3 +14,4 @@ if __name__ == "__main__":
     route_analysis.main()  # P1 : route_analysis.json (échoue si pente > 20°)
     slope_tiles.main()  # P2 : tuiles de pente
     paths.main()  # P5 : itinéraires calculés + zone de retour
+    terrain_export.main()  # grilles altitude / pente / coût pour le routage dans le navigateur

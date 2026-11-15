@@ -145,6 +145,14 @@ En développement, une tuile absente du cache est servie par Vite sous forme de 
 | `geology.geojson` | unités, fronts de delta, cratères, ellipse Mars 2020 (USGS SIM 3464) | couche « Géologie » |
 | `routes_computed.geojson` · `return_zone.geojson` | itinéraires plus court et moindre coût ; zone de retour | couches et « Comparaison des itinéraires » |
 
+**Outils de terrain (écran Préparation).** Ils fonctionnent entièrement dans le navigateur, sur les grilles de `public/data/terrain/` chargées à la demande (≈ 4,7 Mo) :
+- **Inspecteur :** au clic, il donne l’altitude, la pente, l’unité géologique, la classe CRISM, l’appartenance à la zone de retour et le temps de retour, chaque valeur avec son étiquette de provenance (`domain/inspect.ts`).
+- **Choix de B :** au clic (mode « Choisir B ») ou depuis la liste des sites, il calcule l’itinéraire de moindre coût A → B avec l’A* (`domain/routing.ts`, même coût que le pipeline, testé à 1 % près) ; le retour suit le même chemin, au même coût.
+  - Marge et statut passent par `domain/autonomy.ts`. Si la marge passe sous la réserve, le choix est refusé, la marge résultante est affichée et l’itinéraire apparaît en rouge.
+  - Le plan accepté (`domain/plan.ts`) est stocké dans l’état de mission et partagé avec la tablette et le casque. Le scénario « obstacle » n’existe que pour le tracé de référence.
+- **Sites candidats :** régions « Carbonates marginaux » situées dans la zone de retour, triées par temps de retour.
+- **Survol lié :** survoler le profil place un repère sur la carte, et longer le tracé sur la carte place un repère sur le profil.
+
 - **Analyse du tracé :** `data.ts` appelle d’abord `GET ${VITE_API_URL ?? '/api'}/route/analysis` (proxy Vite vers `localhost:8000`), avec le contrat de la spec §6. S’il échoue, il lit `route_analysis.json`. Le tableau de provenance indique la source réellement utilisée.
 - **Fichiers facultatifs :** les couches issues de la chaîne de traitement le sont ; si un fichier manque, la couche disparaît et l’application fonctionne avec le tracé GeoJSON seul.
 - **Durées :** uniquement les coûts de `route_analysis.json` divisés par la vitesse (`domain/autonomy.ts`). Le retour depuis B suit l’itinéraire de moindre coût B → A ; les options d’imprévu sont calculées à partir de ces coûts (`optionPlan`).

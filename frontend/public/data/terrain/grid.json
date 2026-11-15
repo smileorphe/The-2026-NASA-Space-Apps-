@@ -1,0 +1,143 @@
+{
+ "width": 610,
+ "height": 641,
+ "cell_m": 5.0,
+ "origin": {
+  "x": -1370.0,
+  "y": 1100885.0,
+  "note": "coin haut-gauche de la cellule (0, 0), mètres en projection locale"
+ },
+ "projection": {
+  "proj4": "+proj=eqc +lat_ts=18.55 +lat_0=0 +lon_0=77.36 +x_0=0 +y_0=0 +R=3396190 +units=m +no_defs",
+  "type": "eqc",
+  "lat_ts": 18.55,
+  "lon_0": 77.36,
+  "radius_m": 3396190
+ },
+ "dtype": "float32",
+ "byte_order": "little",
+ "order": "lignes depuis le haut (nord), colonnes vers l'est",
+ "files": {
+  "altitude": "altitude.f32",
+  "slope": "slope.f32",
+  "cost": "cost.f32"
+ },
+ "nodata": {
+  "altitude": "NaN",
+  "slope": "NaN",
+  "cost": "valeur < 0 : cellule interdite (pente > 20° ou NoData)"
+ },
+ "cost": {
+  "alpha_per_deg": 0.1,
+  "sand_factor": 2.0,
+  "slope_max_deg": 20.0,
+  "step": "(c1 + c2) / 2 × longueur du pas, 8 voisins (skimage MCP_Geometric)"
+ },
+ "references": {
+  "cells": {
+   "A": [
+    607,
+    234
+   ],
+   "B": [
+    230,
+    244
+   ],
+   "MC1": [
+    290,
+    216
+   ],
+   "MC2": [
+    367,
+    174
+   ],
+   "MC3": [
+    176,
+    259
+   ]
+  },
+  "least_cost_m": [
+   {
+    "from": "A",
+    "to": "B",
+    "cost_m": 2606.83
+   },
+   {
+    "from": "B",
+    "to": "A",
+    "cost_m": 2606.83
+   },
+   {
+    "from": "A",
+    "to": "MC1",
+    "cost_m": 2150.49
+   },
+   {
+    "from": "A",
+    "to": "MC2",
+    "cost_m": 1694.3
+   },
+   {
+    "from": "A",
+    "to": "MC3",
+    "cost_m": 2964.55
+   }
+  ],
+  "shortest_m": [
+   {
+    "from": "A",
+    "to": "B",
+    "cost_m": 1905.71
+   }
+  ],
+  "cost_from_A_m": {
+   "B": 2606.83,
+   "MC1": 2150.49,
+   "MC2": 1694.3,
+   "MC3": 2964.55
+  },
+  "cell_centers_lonlat": [
+   {
+    "cell": [
+     0,
+     0
+    ],
+    "lonlat": [
+     77.3356652,
+     18.5725537
+    ]
+   },
+   {
+    "cell": [
+     640,
+     609
+    ],
+    "lonlat": [
+     77.3898513,
+     18.5185677
+    ]
+   },
+   {
+    "cell": [
+     607,
+     234
+    ],
+    "lonlat": [
+     77.3564855,
+     18.5213514
+    ]
+   },
+   {
+    "cell": [
+     230,
+     244
+    ],
+    "lonlat": [
+     77.3573752,
+     18.5531525
+    ]
+   }
+  ]
+ },
+ "generated": "2026-11-15"
+}

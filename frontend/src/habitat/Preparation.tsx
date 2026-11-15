@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { BudgetBar, ElevationProfile } from '../components/charts';
 import { Icon } from '../components/Icon';
@@ -13,11 +13,16 @@ import { slopeClass } from '../domain/slope';
 import { cssColor } from '../components/ui';
 import { dispatch, useMission } from '../store';
 import { Header } from './HabitatLayout';
+import { CurrentB, PickBar, SiteCandidates, TerrainInspector, useTerrainTools } from './TerrainTools';
 
 export function Preparation() {
   const { s, view, data } = useMission();
   const navigate = useNavigate();
   const [refusal, setRefusal] = useState<NoticeMsg | null>(null);
+  const tools = useTerrainTools();
+  const [hoverD, setHoverD] = useState<number | null>(null); // survol partagé carte ↔ profil
+  // Un nouveau tracé invalide la distance survolée (elle se rapportait à l'ancien tracé)
+  useEffect(() => setHoverD(null), [s.plan?.id]);
   const p = s.params;
   const editable = s.phase === 'prep';
   const ready = isAllowed(view.margin, p.reserve);
@@ -47,7 +52,7 @@ export function Preparation() {
 
   return (
     <>
-      <Header title="Préparation de la sortie" subtitle="Cratère Jezero · tracé prédéfini · toutes les valeurs de temps et d’autonomie sont simulées" />
+      <Header title="Préparation de la sortie" subtitle={`Cratère Jezero · ${s.plan ? 'B choisi sur la carte, itinéraire de moindre coût' : 'tracé de référence'} · toutes les valeurs de temps et d’autonomie sont simulées`} />
 
       <div className="grid">
         <section className="card s12">
@@ -71,9 +76,12 @@ export function Preparation() {
         </section>
 
         <Card title="Itinéraire A → B" tag="der" className="s7">
-          <MissionMap height={460} />
+          <PickBar t={tools} />
+          <MissionMap height={460} onPick={tools.onPick} probe={tools.probe} preview={tools.preview} hoverD={hoverD} onRouteHover={setHoverD} />
+          <CurrentB t={tools} margin={view.margin} />
           <div className="row small muted">
-            <span>Tracé : <span className="mono">route_aller.geojson</span></span>·<span>Retour : tracé inversé</span>
+            <span>Tracé : {s.plan ? 'moindre coût A → B (A*, grille 5 m)' : <span className="mono">route_aller.geojson</span>}</span>·
+            <span>Retour : {s.plan ? 'même chemin, coût identique' : 'moindre coût B → A'}</span>
           </div>
           <SlopeLegend />
           <CrismLegend />
@@ -89,6 +97,14 @@ export function Preparation() {
             <Stat label="Retour estimé" tag="sim" value={`${Math.round(view.budget.retour)} min`} />
           </div>
           <Notice msg={{ color: slopeClass(hardest.slope_deg).color, title: `Segment le plus raide : ${hardest.from} → ${hardest.to}.`, text: `Pente maximale ${fmtDeg(hardest.slope_deg)} sur ${Math.round(hardest.length_m)} m (classe ${slopeClass(hardest.slope_deg).label}).` }} />
+        </Card>
+
+        <Card title="Inspecteur de terrain" className="s6" extra={<span className="small muted">clic sur la carte</span>}>
+          <TerrainInspector t={tools} />
+        </Card>
+
+        <Card title="Sites candidats · carbonates marginaux" tag="der" className="s6">
+          <SiteCandidates t={tools} />
         </Card>
 
         <Card title="Paramètres de simulation" tag="sim" className="s4">
@@ -131,7 +147,7 @@ export function Preparation() {
         </Card>
 
         <Card title="Profil d’élévation" tag="der" className="s6">
-          <ElevationProfile profile={a.profile} />
+          <ElevationProfile profile={a.profile} hover={hoverD} onHover={setHoverD} />
         </Card>
 
         <Card title="Comparaison des itinéraires" tag="der" className="s6" extra={<span className="small muted">calculés sur le DTM 5 m</span>}>
@@ -162,7 +178,7 @@ function Stepper({ label, hint, value, onDec, onInc, disabled }: { label: string
 
 /** Tracé de mission et itinéraires calculés (pipeline/paths.py), évalués avec la même carte de coût. */
 function RouteComparison() {
-  const { data } = useMission();
+  const { s, data } = useMission();
   const { routes, returnZone } = data.overlays;
   if (!routes) return <p className="small muted">Itinéraires calculés indisponibles (routes_computed.geojson absent) : seul le tracé de mission est utilisé.</p>;
   const rows = [routes.mission, ...routes.features.map((f) => f.properties)];
@@ -191,7 +207,10 @@ function RouteComparison() {
         Coût = (1 + {routes.parameters.alpha_per_deg} × pente°) × {routes.parameters.sand_factor} dans le sable ; pentes &gt; {routes.parameters.slope_max_deg}° interdites ;
         coût 1 = 1 m de terrain plat. Le tracé de mission reste celui de la démonstration ; couches « Itinéraires calculés » et « Zone de retour » sur la carte.
       </p>
-      {zone && zp && (
+      {s.plan && (
+        <Notice msg={{ color: 'var(--muted)', title: 'Référence.', text: 'Ce tableau, la couche « Itinéraires calculés » et la couche « Zone de retour » sont calculés par pipeline/ pour le B de référence. Pour le B choisi, l’inspecteur donne la zone de retour en direct.' }} />
+      )}
+      {!s.plan && zone && zp && (
         <Notice msg={zone.contains_B
           ? { color: STATUS.green.color, title: 'B dans la zone de retour.', text: `Retour depuis B ${fmtMinutes(zone.return_min_from_B)} ≤ seuil ${fmtMinutes(zp.threshold_min)} (autonomie ${zp.autonomy_min} − réserve ${zp.reserve_min} − aller ${fmtMinutes(zp.aller_min)} − observation ${zp.observation_min}), aux paramètres par défaut.` }
           : { color: STATUS.amber.color, title: 'B hors de la zone de retour.', text: `Retour depuis B ${fmtMinutes(zone.return_min_from_B)} > seuil ${fmtMinutes(zp.threshold_min)} : la marge nominale est sous la réserve.` }} />

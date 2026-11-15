@@ -20,7 +20,8 @@ import type BaseLayer from 'ol/layer/Base';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import { Circle, Fill, RegularShape, Stroke, Style, Text } from 'ol/style';
-import { slicePath, type XY } from '../domain/geometry';
+import { dist, distanceAlong, pointAt, slicePath, type XY } from '../domain/geometry';
+import type { LonLat } from '../domain/projection';
 import type { MissionData, Waypoint } from '../data';
 import { SLOPE_CLASSES, slopeClass } from '../domain/slope';
 import type { MissionState, View as MissionView } from '../domain/mission';
@@ -150,13 +151,36 @@ interface MapHandle {
   map: OlMap;
   layers: Record<LayerKey, BaseLayer | undefined>;
   mission: VectorSource;
+  extras: VectorSource; // point inspecté, aperçu d'itinéraire, repère de survol
 }
 
-export function MissionMap({ height = 460, live = false }: { height?: number; live?: boolean }) {
+const probeStyle = new Style({
+  image: new RegularShape({ points: 4, radius: 11, radius2: 0, angle: Math.PI / 4, stroke: new Stroke({ color: '#F3EFEA', width: 3 }) }),
+});
+const hoverStyle = new Style({ image: new Circle({ radius: 7, fill: new Fill({ color: '#EE8A1B' }), stroke: new Stroke({ color: '#120F0D', width: 2 }) }) });
+
+export interface MissionMapProps {
+  height?: number;
+  live?: boolean;
+  /** Clic sur la carte (lon/lat) ; le curseur devient une croix. */
+  onPick?: (p: LonLat) => void;
+  /** Point inspecté (marqueur en croix). */
+  probe?: LonLat | null;
+  /** Itinéraire proposé : vert pointillé s'il est accepté, rouge s'il est refusé. */
+  preview?: { coords: LonLat[]; ok: boolean } | null;
+  /** Survol lié au profil : distance le long du tracé (m) à marquer, et rappel quand le pointeur longe le tracé. */
+  hoverD?: number | null;
+  onRouteHover?: (d: number | null) => void;
+}
+
+export function MissionMap({ height = 460, live = false, onPick, probe = null, preview = null, hoverD = null, onRouteHover }: MissionMapProps) {
   const { s, view, data } = useMission();
   const target = useRef<HTMLDivElement>(null);
   const handle = useRef<MapHandle | null>(null);
   const [on, setOn] = useState<Record<LayerKey, boolean>>(DEFAULT_ON);
+  // Valeurs courantes lues par les gestionnaires d'événements OpenLayers (créés une seule fois)
+  const latest = useRef({ data, on, onPick, onRouteHover });
+  latest.current = { data, on, onPick, onRouteHover };
   const imageryCfg = data.layers.find((l) => l.id === 'imagery')?.wmts;
   const slopeCfg = data.layers.find((l) => l.id === 'slope')?.wmts;
   const ov = data.overlays;
@@ -183,9 +207,11 @@ export function MissionMap({ height = 460, live = false }: { height?: number; li
       routes: geojsonLayer(ov.routes, routeStyle),
     };
     const mission = new VectorSource();
+    const extras = new VectorSource();
     const map = new OlMap({
       target: target.current!,
-      layers: [basemap, ctx, imagery, slope, layers.returnZone, layers.regions, layers.geology, layers.crism, layers.routes, new VectorLayer({ source: mission })].filter(
+      layers: [basemap, ctx, imagery, slope, layers.returnZone, layers.regions, layers.geology, layers.crism, layers.routes,
+        new VectorLayer({ source: mission }), new VectorLayer({ source: extras })].filter(
         (l): l is NonNullable<typeof l> => !!l,
       ),
       // Vue limitée à l'emprise de la mosaïque, zoom calé sur les niveaux de la grille HiRISE :
@@ -200,15 +226,29 @@ export function MissionMap({ height = 460, live = false }: { height?: number; li
       interactions: defaultInteractions({ mouseWheelZoom: false }), // la page défile, la carte zoome aux boutons
     });
     // Vue initiale : tracé aller + détour
-    map.getView().fit(boundingExtent([...data.route, ...data.detour].map(data.projection.toLonLat)), { padding: [50, 50, 50, 50] });
-    for (const key of Object.keys(layers) as LayerKey[]) layers[key]?.setVisible(DEFAULT_ON[key]);
-    handle.current = { map, layers, mission };
+    const d0 = latest.current.data;
+    map.getView().fit(boundingExtent([...d0.route, ...d0.detour].map(d0.projection.toLonLat)), { padding: [50, 50, 50, 50] });
+    for (const key of Object.keys(layers) as LayerKey[]) layers[key]?.setVisible(latest.current.on[key]);
+    map.on('singleclick', (e) => latest.current.onPick?.(e.coordinate as LonLat));
+    // Survol du tracé : distance le long du tracé si le pointeur est à moins de 20 px
+    let hovering = false;
+    map.on('pointermove', (e) => {
+      const { data: d, onRouteHover: cb } = latest.current;
+      if (!cb || e.dragging) return;
+      const along = distanceAlong(d.route, d.projection.toLocal(e.coordinate as LonLat));
+      const px = map.getPixelFromCoordinate(d.projection.toLonLat(pointAt(d.route, along).p));
+      const near = !!px && dist(px as XY, e.pixel as XY) < 20;
+      if (near) cb(along);
+      else if (hovering) cb(null);
+      hovering = near;
+    });
+    handle.current = { map, layers, mission, extras };
     if (import.meta.env.DEV) (window as unknown as { __evaMap?: OlMap }).__evaMap = map; // diagnostic (console / tests)
     return () => {
       map.setTarget(undefined);
       handle.current = null;
     };
-  }, [data, imageryCfg, basemapCfg, ctxCfg, slopeCfg, ov]);
+  }, [imageryCfg, basemapCfg, ctxCfg, slopeCfg, ov]); // pas `data` : un nouveau tracé ne recrée pas la carte
 
   // Mise à jour des entités de mission à chaque changement d'état
   useEffect(() => {
@@ -217,6 +257,21 @@ export function MissionMap({ height = 460, live = false }: { height?: number; li
     h.mission.clear(true);
     h.mission.addFeatures(missionFeatures(data, s, view, live));
   }, [data, s, view, live]);
+
+  // Point inspecté, aperçu d'itinéraire, repère de survol
+  useEffect(() => {
+    const h = handle.current;
+    if (!h) return;
+    h.extras.clear(true);
+    const add = (geom: Point | LineString, style: Style) => {
+      const f = new Feature(geom);
+      f.setStyle(style);
+      h.extras.addFeature(f);
+    };
+    if (preview) add(new LineString(preview.coords), line(preview.ok ? '#1FC48F' : '#F4605A', 4, [8, 6]));
+    if (probe) add(new Point(probe), probeStyle);
+    if (hoverD !== null) add(new Point(data.projection.toLonLat(pointAt(data.route, hoverD).p)), hoverStyle);
+  }, [probe, preview, hoverD, data]);
 
   // Visibilité des couches
   useEffect(() => {
@@ -239,7 +294,7 @@ export function MissionMap({ height = 460, live = false }: { height?: number; li
         ))}
       </div>
     <div className="map" style={{ height }}>
-      <div ref={target} className="map-target" />
+      <div ref={target} className="map-target" style={onPick ? { cursor: 'crosshair' } : undefined} />
       {Object.values(cached).some(Boolean) && (
         <div className="map-badge" role="status">
           <Icon name="warning" size={14} /> Serveur injoignable · cache local : {Object.keys(cached).filter((k) => cached[k]).join(', ')}

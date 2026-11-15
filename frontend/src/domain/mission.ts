@@ -24,6 +24,7 @@ import {
 } from './autonomy';
 import { type XY, dist, distanceAlong, pathLength, pointAt, slicePath, bearing } from './geometry';
 import type { IncidentId, MissionData, ScenarioOption, Waypoint, WaypointId } from '../data';
+import { type CustomPlan, withPlan } from './plan';
 
 export type Source = 'HABITAT' | 'TABLETTE' | 'CASQUE' | 'SYSTÈME';
 export type ClockSpeed = 0 | 1 | 10 | 60;
@@ -58,6 +59,7 @@ export interface MissionState {
   minMargin: number;
   log: LogEntry[];
   lastMessageToHud?: string;
+  plan: CustomPlan | null; // B choisi sur la carte (null = tracé de référence) ; partagé avec les trois modes
 }
 
 export type Action =
@@ -71,6 +73,7 @@ export type Action =
   | { type: 'CHOOSE_OPTION'; optionId: string }
   | { type: 'RETURN_NOW'; source: Source }
   | { type: 'SEND_HUD_MESSAGE'; text: string }
+  | { type: 'SET_PLAN'; plan: CustomPlan | null }
   | { type: 'RESET' };
 
 /* ------------------------------------------------------------------ */
@@ -118,6 +121,7 @@ export function initialState(params: SimParams = FALLBACK_PARAMS, data: MissionD
     traveledM: 0,
     minMargin: data ? plannedMargin(params, planCosts(data)) : 0,
     log: [],
+    plan: null,
   };
 }
 
@@ -387,7 +391,12 @@ function tick(s: MissionState, dt: number, data: MissionData): MissionState {
   return next;
 }
 
-export function reduce(s: MissionState, a: Action, data: MissionData): MissionState {
+/**
+ * Réducteur. `base` = données de référence ; le plan éventuel (B choisi sur la carte) est appliqué ici,
+ * si bien que tous les appelants passent les mêmes données.
+ */
+export function reduce(s: MissionState, a: Action, base: MissionData): MissionState {
+  const data = withPlan(base, s.plan);
   const reserve = s.params.reserve;
   const costs = planCosts(data);
   switch (a.type) {
@@ -412,6 +421,7 @@ export function reduce(s: MissionState, a: Action, data: MissionData): MissionSt
         reached: { A: 0 },
         trail: [data.route[0]],
         minMargin: m,
+        plan: s.plan, // le B choisi reste celui de la sortie
       };
       return addLog(launched, 'HABITAT', `Départ de l’habitat A · marge ${m} min`);
     }
@@ -437,13 +447,15 @@ export function reduce(s: MissionState, a: Action, data: MissionData): MissionSt
 
     case 'TRIGGER_INCIDENT': {
       if (s.phase !== 'eva' || s.leg?.kind !== 'out' || s.incident) return s;
+      const scenario = data.scenarios[a.id];
+      if (!scenario) return s;
       const next = { ...s, incident: { id: a.id } };
-      return addLog(next, 'SYSTÈME', `Événement simulé : ${lowerFirst(data.scenarios[a.id].title)}`);
+      return addLog(next, 'SYSTÈME', `Événement simulé : ${lowerFirst(scenario.title)}`);
     }
 
     case 'CHOOSE_OPTION': {
       if (!s.incident || s.incident.choice || s.leg?.kind !== 'out') return s;
-      const opt = data.scenarios[s.incident.id].options.find((o) => o.id === a.optionId);
+      const opt = data.scenarios[s.incident.id]?.options.find((o) => o.id === a.optionId);
       if (!opt) return s;
       const m = optionMargin(s, data, opt);
       if (!isAllowed(m, reserve)) return s;
@@ -467,7 +479,15 @@ export function reduce(s: MissionState, a: Action, data: MissionData): MissionSt
     case 'SEND_HUD_MESSAGE':
       return addLog({ ...s, lastMessageToHud: a.text }, 'HABITAT', `Message au casque : « ${a.text} »`);
 
+    case 'SET_PLAN': {
+      if (s.phase !== 'prep') return s;
+      const next = withPlan(base, a.plan);
+      const m = plannedMargin(s.params, planCosts(next));
+      if (!isAllowed(m, reserve)) return s; // refus : la marge passerait sous la réserve
+      return { ...initialState(s.params, next), plan: a.plan };
+    }
+
     case 'RESET':
-      return initialState(s.params, data);
+      return { ...initialState(s.params, data), plan: s.plan };
   }
 }

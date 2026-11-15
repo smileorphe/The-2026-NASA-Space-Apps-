@@ -6,6 +6,7 @@
  */
 import { distanceAlong, pathLength, type XY } from './domain/geometry';
 import { localProjection, type LocalProjection, type LonLat } from './domain/projection';
+import { makeGrid, type GridMeta, type TerrainGrid } from './domain/terrain';
 
 /** Provenance d'une valeur (FRONTEND_SPEC §3) : observé, dérivé, interprétation, simulé. */
 export type ProvenanceKind = 'obs' | 'der' | 'int' | 'sim';
@@ -146,7 +147,7 @@ export interface MissionData {
   detour: XY[];
   obstacle: XY | null;
   returnPath: XY[]; // itinéraire de moindre coût B → A
-  scenarios: Record<IncidentId, Scenario>;
+  scenarios: Partial<Record<IncidentId, Scenario>>; // « obstacle » n'existe que pour le tracé de référence
   projection: LocalProjection; // conversion repère local ↔ lon/lat, origine = A
   projectionLabel: string;
   layers: LayerInfo[];
@@ -252,4 +253,22 @@ export function buildMissionData({ aller, detour, scenarios, layersFile, analysi
     analysisSource: source,
     overlays,
   };
+}
+
+let terrain: Promise<TerrainGrid> | null = null;
+
+/** Grilles altitude / pente / coût (public/data/terrain/, ≈ 4,7 Mo), chargées une seule fois à la demande. */
+export function loadTerrain(): Promise<TerrainGrid> {
+  terrain ??= (async () => {
+    const meta = await getJson<GridMeta>('/data/terrain/grid.json');
+    const f32 = async (file: string) => {
+      const res = await fetch(`/data/terrain/${file}`);
+      if (!res.ok) throw new Error(`terrain/${file} : HTTP ${res.status}`);
+      return new Float32Array(await res.arrayBuffer());
+    };
+    const [altitude, slope, cost] = await Promise.all([f32(meta.files.altitude), f32(meta.files.slope), f32(meta.files.cost)]);
+    return makeGrid(meta, altitude, slope, cost);
+  })();
+  terrain.catch(() => (terrain = null)); // nouvel essai au prochain appel
+  return terrain;
 }

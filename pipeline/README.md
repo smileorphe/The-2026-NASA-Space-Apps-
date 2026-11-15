@@ -21,6 +21,7 @@ Le dossier `nasa/data/` doit contenir le DTM HiRISE 1 m (`JEZ_hirise_soc_006_DTM
 | `slope_tiles.py` | tuiles de pente, grille géographique identique à `gdal2tiles --profile=geodetic --xyz` (niveaux 11–15) | `frontend/public/tiles/slope/` |
 | `paths.py` | itinéraires « plus court » et « moindre coût » (`route_through_array`), zone de retour (`MCP_Geometric`) avec contrôle de cohérence | `routes_computed.geojson`, `return_zone.geojson` |
 | `terrain.py` | outils communs : rasters, carte de coût unique, échantillonnage, moindre coût | — |
+| `terrain_export.py` | grilles altitude, pente et coût de l’extrait 5 m en Float32 + `grid.json` (dimensions, origine, cellule, projection, nodata, coûts de référence pour les tests du routage TypeScript) | `frontend/public/data/terrain/` (≈ 4,7 Mo, versionné) |
 
 Les paramètres (zone, projection, résolution, seuils de pente, α, facteur sable, budget de retour) sont dans `config.py`.
 

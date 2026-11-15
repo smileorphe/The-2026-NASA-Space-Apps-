@@ -56,7 +56,7 @@ describe('simulation de la sortie', () => {
   it('tempête à mi-parcours : « poursuivre » refusé, « retour immédiat » accepté', () => {
     let s = advance(run(start(), { type: 'LAUNCH' }), nominal.aller_min / 2);
     s = run(s, { type: 'TRIGGER_INCIDENT', id: 'storm' });
-    const [go, back] = data.scenarios.storm.options;
+    const [go, back] = data.scenarios.storm!.options;
     expect(isAllowed(optionMargin(s, data, go), s.params.reserve)).toBe(false);
     expect(isAllowed(optionMargin(s, data, back), s.params.reserve)).toBe(true);
     expect(run(s, { type: 'CHOOSE_OPTION', optionId: 'go' })).toBe(s);

@@ -1,4 +1,5 @@
 /** Petits graphiques SVG sans bibliothèque : profil d'élévation, autonomie dans le temps, barre de budget. */
+import type React from 'react';
 import type { Budget } from '../domain/autonomy';
 import { cssColor } from './ui';
 
@@ -8,7 +9,8 @@ const PAD = { l: 52, r: 12, t: 12, b: 26 };
 
 const scale = (v: number, d0: number, d1: number, r0: number, r1: number) => r0 + ((v - d0) / (d1 - d0 || 1)) * (r1 - r0);
 
-export function ElevationProfile({ profile, marker }: { profile: { d: number; z: number }[]; marker?: number }) {
+/** Profil d'élévation. `hover` / `onHover` : distance survolée (m), partagée avec la carte. */
+export function ElevationProfile({ profile, marker, hover = null, onHover }: { profile: { d: number; z: number }[]; marker?: number; hover?: number | null; onHover?: (d: number | null) => void }) {
   const dMax = profile[profile.length - 1].d;
   const zs = profile.map((p) => p.z);
   const [zMin, zMax] = [Math.min(...zs) - 2, Math.max(...zs) + 2];
@@ -16,9 +18,21 @@ export function ElevationProfile({ profile, marker }: { profile: { d: number; z:
   const Y = (z: number) => scale(z, zMin, zMax, H - PAD.b, PAD.t);
   const line = profile.map((p) => `${X(p.d)},${Y(p.z)}`).join(' ');
   const label = `Profil d’élévation sur ${Math.round(dMax)} m, de ${Math.round(zMin + 2)} à ${Math.round(zMax - 2)} m`;
+  const zAt = (d: number) => {
+    const i = profile.findIndex((p) => p.d >= d);
+    if (i <= 0) return profile[Math.max(i, 0)].z;
+    const a = profile[i - 1], b = profile[i];
+    return a.z + ((b.z - a.z) * (d - a.d)) / (b.d - a.d || 1);
+  };
+  const move = (e: React.MouseEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width) * W;
+    onHover?.(Math.max(0, Math.min(dMax, ((x - PAD.l) / (W - PAD.l - PAD.r)) * dMax)));
+  };
 
   return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
+    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}
+      onMouseMove={onHover ? move : undefined} onMouseLeave={onHover ? () => onHover(null) : undefined}>
       <polygon points={`${X(0)},${H - PAD.b} ${line} ${X(dMax)},${H - PAD.b}`} fill="#4CC6EA" opacity="0.12" />
       <polyline points={line} fill="none" stroke="#4CC6EA" strokeWidth="2.5" />
       <g fontFamily="IBM Plex Mono, monospace" fontSize="11" fill="#ABA39B">
@@ -27,6 +41,15 @@ export function ElevationProfile({ profile, marker }: { profile: { d: number; z:
         <text x={PAD.l} y={H - 6}>A · 0 m</text>
         <text x={W - PAD.r} y={H - 6} textAnchor="end">B · {Math.round(dMax)} m</text>
       </g>
+      {hover !== null && (
+        <g>
+          <line x1={X(hover)} x2={X(hover)} y1={PAD.t} y2={H - PAD.b} stroke="#EE8A1B" strokeWidth="1.5" />
+          <circle cx={X(hover)} cy={Y(zAt(hover))} r="4.5" fill="#EE8A1B" />
+          <text x={Math.min(X(hover) + 6, W - 120)} y={PAD.t + 24} fontSize="11" fill="#EE8A1B" fontFamily="IBM Plex Mono, monospace">
+            {Math.round(hover)} m · {Math.round(zAt(hover))} m
+          </text>
+        </g>
+      )}
       {marker !== undefined && (
         <g>
           <line x1={X(marker)} x2={X(marker)} y1={PAD.t} y2={H - PAD.b} stroke="#EE8A1B" strokeWidth="2" strokeDasharray="4 4" />
