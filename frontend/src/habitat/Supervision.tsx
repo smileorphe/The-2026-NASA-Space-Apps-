@@ -3,7 +3,8 @@ import { Link } from 'react-router';
 import { AutonomyChart, ElevationProfile } from '../components/charts';
 import { Icon } from '../components/Icon';
 import { MissionLog } from '../components/MissionLog';
-import { CrismLegend, MissionMap, SlopeLegend } from '../components/MissionMap';
+import { MapLegend } from '../components/MapLegend';
+import { MissionMap } from '../components/MissionMap';
 import { PointBFacts } from '../components/PointB';
 import { Card, cssColor, Notice, type NoticeMsg, Stat, StatusPill, STATUS } from '../components/ui';
 import { isAllowed, plannedDurations, plannedMargin, statusOf } from '../domain/autonomy';
@@ -130,8 +131,7 @@ export function Supervision() {
             <Stat label="Arrivée B" tag="sim" value={view.etaB !== null ? fmtT(view.etaB) : 'annulée'} />
             <Stat label="Retour A" tag="sim" value={fmtT(view.etaA)} />
           </div>
-          <SlopeLegend />
-          <CrismLegend />
+          <MapLegend />
         </Card>
 
         <Card title="Options de décision" tag="sim" className="s4">

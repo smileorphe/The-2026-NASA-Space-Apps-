@@ -3,6 +3,7 @@ import { Icon } from '../components/Icon';
 import { TimeCursor } from '../components/TimeCursor';
 import { momentAt } from '../domain/mission';
 import { MissionLog } from '../components/MissionLog';
+import { MapLegend } from '../components/MapLegend';
 import { MissionMap } from '../components/MissionMap';
 import { Card, cssColor, Stat } from '../components/ui';
 import { fmtDistance, fmtDuration, fmtT } from '../format';
@@ -78,6 +79,7 @@ export function Bilan() {
         <Card title="Relecture de la sortie" className="s7" extra={moment && <span className="small muted mono">{fmtT(moment.t)} · marge {moment.margin ?? '—'} min · autonomie {Math.round(moment.remaining)} min</span>}>
           <MissionMap height={420} live atT={atT} />
           {s.phase !== 'prep' && <TimeCursor t={s.clock.t} value={atT} onChange={setAtT} end={s.clock.t} />}
+          <MapLegend />
           <p className="small muted">Épingles : observations de la tablette à leur position simulée (clic pour le détail). Le curseur rejoue position, marge et journal.</p>
         </Card>
 

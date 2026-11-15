@@ -28,6 +28,7 @@ import type { MissionData, Waypoint } from '../data';
 import { SLOPE_CLASSES, slopeClass } from '../domain/slope';
 import { momentAt, type Moment, type MissionState, type View as MissionView } from '../domain/mission';
 import { fromGridXY } from '../domain/terrain';
+import { CRISM_COLORS, CRISM_FILL_OPACITY, CRISM_FOOTPRINT, GEOLOGY, POINTS, ROUTE, SAFETY } from '../map/palette';
 import { fmtT } from '../format';
 import { MARS_2000, type TileOrigin, wmtsLayer, wmtsResolutions } from '../map/mars';
 import { alternativesFor, useMission, useTerrain, zoneFor } from '../store';
@@ -38,11 +39,11 @@ import { cssColor } from './ui';
 type LayerKey = 'imagery' | 'slope' | 'regions' | 'geology' | 'routes' | 'returnZone' | 'crism';
 const TOGGLES: { id: LayerKey; label: string; color: string }[] = [
   { id: 'imagery', label: 'HiRISE', color: 'var(--text)' },
-  { id: 'slope', label: 'Pentes', color: '#F28A2E' },
-  { id: 'regions', label: 'Régions CRISM', color: '#B59CFF' },
-  { id: 'geology', label: 'Géologie', color: '#FFE650' },
-  { id: 'routes', label: 'Itinéraires calculés', color: '#B59CFF' }, // en direct : plus court / moindre coût vers le B courant
-  { id: 'returnZone', label: 'Zone de retour', color: '#1FC48F' },
+  { id: 'slope', label: 'Pentes', color: SLOPE_CLASSES[2].color },
+  { id: 'regions', label: 'Régions CRISM', color: CRISM_COLORS.MC },
+  { id: 'geology', label: 'Géologie', color: GEOLOGY.unit },
+  { id: 'routes', label: 'Itinéraires calculés', color: ROUTE.leastCost.color }, // en direct : plus court / moindre coût vers le B courant
+  { id: 'returnZone', label: 'Zone de retour', color: SAFETY.returnZone },
   { id: 'crism', label: 'Emprise CRISM', color: 'var(--carb)' },
 ];
 const DEFAULT_ON: Record<LayerKey, boolean> = { imagery: true, slope: true, regions: true, geology: false, routes: false, returnZone: false, crism: false };
@@ -60,30 +61,35 @@ const line = (color: string, width: number, lineDash?: number[], opacity = 1) =>
   const [r, g, b] = asArray(color);
   return new Style({ stroke: new Stroke({ color: [r, g, b, opacity], width, lineDash }) });
 };
+const lineOf = (spec: { color: string; width: number; dash?: readonly number[] }) => line(spec.color, spec.width, spec.dash ? [...spec.dash] : undefined);
+const withAlpha = (color: string, alpha: number) => {
+  const [r, g, b] = asArray(color);
+  return [r, g, b, alpha];
+};
 const label = (text: string, offsetY: number) =>
   new Text({ text, offsetY, font: `600 12px ${FONT}`, fill: new Fill({ color: '#F3EFEA' }), backgroundFill: new Fill({ color: 'rgba(16,13,11,0.85)' }), padding: [3, 6, 3, 6] });
 
 function waypointStyle(w: Waypoint, done: boolean): Style[] {
-  const text = new Text({ text: w.id, font: `800 ${w.id.length > 1 ? 10 : 14}px ${FONT}`, fill: new Fill({ color: w.id === 'A' ? '#1A1817' : w.id === 'B' ? '#120F0D' : '#F3EFEA' }) });
+  const text = new Text({ text: w.id, font: `800 ${w.id.length > 1 ? 10 : 14}px ${FONT}`, fill: new Fill({ color: w.id === 'A' ? POINTS.waypointFill : w.id === 'B' ? '#120F0D' : '#F3EFEA' }) });
   const image =
     w.id === 'A'
-      ? new RegularShape({ points: 4, radius: 18, angle: Math.PI / 4, fill: new Fill({ color: '#F3EFEA' }) })
+      ? new RegularShape({ points: 4, radius: 18, angle: Math.PI / 4, fill: new Fill({ color: POINTS.A }) })
       : w.id === 'B'
-        ? new RegularShape({ points: 4, radius: 19, fill: new Fill({ color: '#EE8A1B' }) })
-        : new Circle({ radius: 12, fill: new Fill({ color: '#1A1817' }), stroke: new Stroke({ color: done ? '#1FC48F' : '#4CC6EA', width: 3 }) });
+        ? new RegularShape({ points: 4, radius: 19, fill: new Fill({ color: POINTS.B }) })
+        : new Circle({ radius: 12, fill: new Fill({ color: POINTS.waypointFill }), stroke: new Stroke({ color: done ? POINTS.waypointDone : POINTS.waypointTodo, width: 3 }) });
   const styles = [new Style({ image, text })];
   if (w.id === 'A' || w.id === 'B') styles.push(new Style({ text: label(w.name, w.id === 'A' ? 30 : -32) }));
   return styles;
 }
 
-const positionStyle = new Style({ image: new Circle({ radius: 9, fill: new Fill({ color: '#4CC6EA' }), stroke: new Stroke({ color: '#F3EFEA', width: 3 }) }) });
+const positionStyle = new Style({ image: new Circle({ radius: 9, fill: new Fill({ color: POINTS.position }), stroke: new Stroke({ color: POINTS.positionRing, width: 3 }) }) });
 const obstacleStyle = new Style({
-  fill: new Fill({ color: 'rgba(244,96,90,0.35)' }),
-  stroke: new Stroke({ color: '#F4605A', width: 2 }),
+  fill: new Fill({ color: withAlpha(SAFETY.obstacle, SAFETY.obstacleFillOpacity) }),
+  stroke: new Stroke({ color: SAFETY.obstacle, width: 2 }),
   text: new Text({ text: 'Obstacle', offsetY: -22, font: `700 12px ${FONT}`, fill: new Fill({ color: '#F3EFEA' }), backgroundFill: new Fill({ color: 'rgba(120,20,16,0.9)' }), padding: [2, 6, 2, 6] }),
 });
 const pinStyle = new Style({
-  image: new Circle({ radius: 7, fill: new Fill({ color: '#B59CFF' }), stroke: new Stroke({ color: '#F3EFEA', width: 2 }) }),
+  image: new Circle({ radius: 7, fill: new Fill({ color: POINTS.pin }), stroke: new Stroke({ color: POINTS.pinRing, width: 2 }) }),
 });
 
 /* ---------------- Construction des entités ---------------- */
@@ -98,24 +104,22 @@ function geojsonLayer(gj: object | null, style: (p: Record<string, unknown>) => 
   return new VectorLayer({ source: new VectorSource({ features }) });
 }
 
-/** Couleurs des classes CRISM (Zastrow & Glotch 2021) ; légende : CrismLegend. */
-export const CRISM_COLORS: Record<string, string> = { MC: '#B59CFF', MT: '#F28AB3', sand: '#E8C27A', mixture: '#8FA3B8' };
 const crismStyles = Object.fromEntries(
   Object.entries(CRISM_COLORS).map(([code, color]) => {
     const [r, g, b] = asArray(color);
-    return [code, new Style({ fill: new Fill({ color: [r, g, b, code === 'mixture' ? 0.12 : 0.3] }), stroke: new Stroke({ color, width: 1 }) })];
+    return [code, new Style({ fill: new Fill({ color: [r, g, b, code === 'mixture' ? CRISM_FILL_OPACITY.mixture : CRISM_FILL_OPACITY.default] }), stroke: new Stroke({ color, width: 1 }) })];
   }),
 );
-const crismStyle = new Style({ stroke: new Stroke({ color: '#B59CFF', width: 2, lineDash: [8, 6] }) });
+const crismStyle = new Style({ stroke: new Stroke({ color: CRISM_FOOTPRINT.color, width: CRISM_FOOTPRINT.width, lineDash: [...CRISM_FOOTPRINT.dash] }) });
 
 function geologyStyle(p: Record<string, unknown>): Style {
   if (p.kind === 'unit')
     return new Style({
-      stroke: new Stroke({ color: 'rgba(255,230,80,0.85)', width: 1.2 }),
-      text: new Text({ text: String(p.symbol), font: `700 12px ${FONT}`, fill: new Fill({ color: '#FFE650' }), stroke: new Stroke({ color: '#120F0D', width: 3 }), overflow: false }),
+      stroke: new Stroke({ color: withAlpha(GEOLOGY.unit, GEOLOGY.unitStrokeOpacity), width: 1.2 }),
+      text: new Text({ text: String(p.symbol), font: `700 12px ${FONT}`, fill: new Fill({ color: GEOLOGY.unit }), stroke: new Stroke({ color: '#120F0D', width: 3 }), overflow: false }),
     });
-  if (p.kind === 'ellipse') return line('#F3EFEA', 1.5, [4, 6], 0.8);
-  return line(String(p.type).includes('delta') ? '#FF4FD8' : '#4CC6EA', 2.5);
+  if (p.kind === 'ellipse') return line(GEOLOGY.ellipse.color, GEOLOGY.ellipse.width, [...GEOLOGY.ellipse.dash], GEOLOGY.ellipse.opacity);
+  return line(String(p.type).includes('delta') ? GEOLOGY.deltaFront : GEOLOGY.otherLine, 2.5);
 }
 
 /** Cercle d'obstacle (rayon en mètres) en lon/lat, via le repère local métrique. */
@@ -142,7 +146,7 @@ function missionFeatures(data: MissionData, s: MissionState, view: MissionView, 
   const byId = Object.fromEntries(data.waypoints.map((w) => [w.id, w]));
   const rerouted = s.incident?.id === 'obstacle' && s.incident.choice === 'continue';
   const out: Feature[] = data.analysis.segments.map((sg) =>
-    path(slicePath(data.route, byId[sg.from].d, byId[sg.to].d), line(slopeClass(sg.slope_deg).color, 5, undefined, rerouted ? 0.35 : 1)),
+    path(slicePath(data.route, byId[sg.from].d, byId[sg.to].d), line(slopeClass(sg.slope_deg).color, ROUTE.width, undefined, rerouted ? ROUTE.fadedOpacity : 1)),
   );
   if (!live) {
     for (const w of data.waypoints) out.push(point(w.xy, waypointStyle(w, false)));
@@ -155,10 +159,10 @@ function missionFeatures(data: MissionData, s: MissionState, view: MissionView, 
     f.setStyle(obstacleStyle);
     out.push(f);
   }
-  if (!moment && rerouted && s.leg?.kind === 'out') out.push(path(s.leg.path, line('#4CC6EA', 3, [8, 8])));
-  if (!moment && s.leg?.kind === 'back' && s.phase === 'eva') out.push(path(s.leg.path, line(view.alert === 'return' ? '#F4605A' : '#4CC6EA', 3, [10, 8])));
+  if (!moment && rerouted && s.leg?.kind === 'out') out.push(path(s.leg.path, lineOf(ROUTE.detour)));
+  if (!moment && s.leg?.kind === 'back' && s.phase === 'eva') out.push(path(s.leg.path, lineOf(view.alert === 'return' ? ROUTE.backAlert : ROUTE.back)));
   const trail = moment ? moment.trail : [...s.trail, view.position];
-  if (trail.length > 1) out.push(path(trail, line('#4CC6EA', 3)));
+  if (trail.length > 1) out.push(path(trail, lineOf(ROUTE.trail)));
 
   for (const w of data.waypoints) out.push(point(w.xy, waypointStyle(w, s.reached[w.id] !== undefined && (!moment || s.reached[w.id]! <= moment.t))));
   // Épingles d'observation (tablette), cliquables
@@ -184,9 +188,9 @@ interface MapHandle {
 }
 
 const probeStyle = new Style({
-  image: new RegularShape({ points: 4, radius: 11, radius2: 0, angle: Math.PI / 4, stroke: new Stroke({ color: '#F3EFEA', width: 3 }) }),
+  image: new RegularShape({ points: 4, radius: 11, radius2: 0, angle: Math.PI / 4, stroke: new Stroke({ color: POINTS.probe, width: 3 }) }),
 });
-const hoverStyle = new Style({ image: new Circle({ radius: 7, fill: new Fill({ color: '#EE8A1B' }), stroke: new Stroke({ color: '#120F0D', width: 2 }) }) });
+const hoverStyle = new Style({ image: new Circle({ radius: 7, fill: new Fill({ color: POINTS.hover }), stroke: new Stroke({ color: '#120F0D', width: 2 }) }) });
 
 export interface MissionMapProps {
   height?: number;
@@ -315,7 +319,8 @@ export function MissionMap({ height = 460, live = false, onPick, probe = null, p
     canvas.height = grid.height;
     const ctx = canvas.getContext('2d')!;
     const img = ctx.createImageData(grid.width, grid.height);
-    for (let i = 0; i < mask.length; i++) if (mask[i]) img.data.set([31, 196, 143, 70], i * 4);
+    const zoneRgba = [...asArray(SAFETY.returnZone).slice(0, 3), SAFETY.returnZoneAlpha];
+    for (let i = 0; i < mask.length; i++) if (mask[i]) img.data.set(zoneRgba, i * 4);
     ctx.putImageData(img, 0, 0);
     const [w, n] = fromGridXY(grid, [grid.origin.x, grid.origin.y]);
     const [e, so] = fromGridXY(grid, [grid.origin.x + grid.width * grid.cell_m, grid.origin.y - grid.height * grid.cell_m]);
@@ -330,10 +335,10 @@ export function MissionMap({ height = 460, live = false, onPick, probe = null, p
     const { shortest, leastCost } = alternativesFor(grid, data);
     const src = layer.getSource()!;
     src.clear(true);
-    for (const [r, color] of [[shortest, '#F3EFEA'], [leastCost, '#B59CFF']] as const) {
+    for (const [r, spec] of [[shortest, ROUTE.shortest], [leastCost, ROUTE.leastCost]] as const) {
       if (!r) continue;
       const f = new Feature(new LineString(r.path));
-      f.setStyle(line(color, 3, [10, 6]));
+      f.setStyle(lineOf(spec));
       src.addFeature(f);
     }
   }, [grid, bKey]);
@@ -348,7 +353,7 @@ export function MissionMap({ height = 460, live = false, onPick, probe = null, p
       f.setStyle(style);
       h.extras.addFeature(f);
     };
-    if (preview) add(new LineString(preview.coords), line(preview.ok ? '#1FC48F' : '#F4605A', 4, [8, 6]));
+    if (preview) add(new LineString(preview.coords), lineOf(preview.ok ? ROUTE.previewOk : ROUTE.previewRefused));
     if (probe) add(new Point(probe), probeStyle);
     if (hoverD !== null) add(new Point(data.projection.toLonLat(pointAt(data.route, hoverD).p)), hoverStyle);
   }, [probe, preview, hoverD, data]);
@@ -387,38 +392,6 @@ export function MissionMap({ height = 460, live = false, onPick, probe = null, p
       )}
       {pin !== null && s.log[pin] && <PinCard entry={s.log[pin]} onClose={() => setPin(null)} />}
     </div>
-    </div>
-  );
-}
-
-export function SlopeLegend() {
-  return (
-    <div className="legend">
-      {SLOPE_CLASSES.map((c) => (
-        <span key={c.label}>
-          <span className="dot" style={cssColor(c.color)} />
-          {c.label}
-        </span>
-      ))}
-      <span>Pente du terrain (DTM 5 m) · tuiles : ≤ 10° non teinté · seuils : paramètres de démonstration</span>
-    </div>
-  );
-}
-
-/** Légende des régions CRISM, libellés lus dans crism_regions.geojson. */
-export function CrismLegend() {
-  const { data } = useMission();
-  const regions = data.overlays.crismRegions;
-  if (!regions) return null;
-  return (
-    <div className="legend">
-      {Object.entries(regions.legend).map(([code, l]) => (
-        <span key={code}>
-          <span className="dot" style={cssColor(CRISM_COLORS[code])} />
-          {l.label}
-        </span>
-      ))}
-      <span>CRISM, Zastrow &amp; Glotch 2021</span>
     </div>
   );
 }

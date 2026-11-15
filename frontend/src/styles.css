@@ -164,3 +164,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 .view3d-exag { position: absolute; top: 10px; left: 10px; z-index: 3; padding: 4px 10px; border-radius: 8px; background: rgba(242, 194, 48, 0.92); color: #1a130c; font-weight: 800; font-size: 13px; }
 .view3d-hud .view3d-exag { top: auto; bottom: 96px; left: 50%; transform: translateX(-50%); }
 .view3d-prov { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 3px 10px; font-size: 11px; color: #f3efea; background: rgba(16, 13, 11, 0.6); text-align: center; pointer-events: none; }
+
+/* Légende statique (components/MapLegend.tsx) : repliable, fond opaque, texte ≥ 12 px, symboles 20 px */
+.map-legend { background: var(--card2); border: 1px solid var(--border); border-radius: 12px; font-size: 13px; color: var(--text); }
+.map-legend > summary { padding: 8px 12px; font-weight: 800; font-size: 13px; cursor: pointer; }
+.map-legend-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 18px; padding: 0 12px 12px; }
+.legend-group h3 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.legend-title { font-weight: 700; font-size: 12px; margin: 6px 0 2px; }
+.legend-row { display: flex; align-items: flex-start; gap: 8px; padding: 2px 0; font-size: 13px; line-height: 1.3; }
+.legend-swatch { flex: 0 0 20px; }
+.legend-detail { display: block; font-size: 12px; color: var(--muted); }

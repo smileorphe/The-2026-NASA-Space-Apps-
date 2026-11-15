@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { BudgetBar, ElevationProfile } from '../components/charts';
 import { Icon } from '../components/Icon';
-import { CrismLegend, MissionMap, SlopeLegend } from '../components/MissionMap';
+import { MapLegend } from '../components/MapLegend';
+import { MissionMap } from '../components/MissionMap';
 import { PointBFacts, SiteImages } from '../components/PointB';
 import { ProvenanceTable } from '../components/ProvenanceTable';
 import { Card, Notice, type NoticeMsg, Stat, StatusPill, STATUS } from '../components/ui';
@@ -84,8 +85,7 @@ export function Preparation() {
             <span>Tracé : {s.plan ? 'moindre coût A → B (A*, grille 5 m)' : <span className="mono">route_aller.geojson</span>}</span>·
             <span>Retour : {s.plan ? 'même chemin, coût identique' : 'moindre coût B → A'}</span>
           </div>
-          <SlopeLegend />
-          <CrismLegend />
+          <MapLegend />
         </Card>
 
         <Card title="Caractéristiques du tracé" extra={<span className="small muted">calculées sur le DTM</span>} className="s5">
