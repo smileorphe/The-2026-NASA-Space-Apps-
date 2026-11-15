@@ -1,0 +1,9 @@
+{
+  "storm": {
+    "title": "Tempête de poussière locale (fictive)",
+    "options": [
+      { "id": "go", "label": "Poursuivre vers B", "detail": "Vitesse simulée × 0,6 (aller et retour)", "kind": "continue", "speedFactor": 0.6 },
+      { "id": "back", "label": "Retour immédiat", "detail": "Tracé connu · vitesse × 0,6", "kind": "back", "speedFactor": 0.6 }
+    ]
+  }
+}

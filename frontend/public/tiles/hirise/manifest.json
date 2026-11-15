@@ -1,0 +1,51 @@
+{
+  "layer": "JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first_dd",
+  "source": "https://trek.nasa.gov/tiles/Mars/EQ/JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first_dd/1.0.0//{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.png",
+  "generatedAt": "2026-11-15T03:33:50.021Z",
+  "zone": "mission",
+  "extent": [
+    77.34434099981397,
+    18.512958197570942,
+    77.36631660018602,
+    18.561596202429058
+  ],
+  "marginM": 500,
+  "levels": [
+    11,
+    15
+  ],
+  "stats": {
+    "11": {
+      "image": 2,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "12": {
+      "image": 2,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "13": {
+      "image": 6,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "14": {
+      "image": 15,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "15": {
+      "image": 50,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    }
+  },
+  "knownAnomalies": [],
+  "unexpectedFailures": []
+}

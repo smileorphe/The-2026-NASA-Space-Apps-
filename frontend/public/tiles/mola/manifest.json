@@ -1,0 +1,69 @@
+{
+  "layer": "Mars_MGS_MOLA_ClrShade_merge_global_463m",
+  "source": "https://trek.nasa.gov/tiles/Mars/EQ/Mars_MGS_MOLA_ClrShade_merge_global_463m/1.0.0//{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.jpg",
+  "generatedAt": "2026-11-15T03:33:58.569Z",
+  "zone": "carte",
+  "extent": [
+    77.2229331,
+    18.3067994,
+    77.583964,
+    18.669315
+  ],
+  "marginM": null,
+  "levels": [
+    0,
+    7
+  ],
+  "stats": {
+    "0": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "1": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "2": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "3": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "4": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "5": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "6": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "7": {
+      "image": 2,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    }
+  },
+  "knownAnomalies": [],
+  "unexpectedFailures": []
+}

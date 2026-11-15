@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>EVA Planner · Tablette au point B</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#100F0E;color:#F3EFEA;font-family:Manrope,system-ui,sans-serif}
+a{color:#EE8A1B}a:hover{color:#FFB25E}
+button{font-family:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #EE8A1B;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 1024px; height: 768px; box-sizing: border-box; background: #0B0A0A; padding: 20px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; font-family: Manrope, sans-serif">
+<header style="display: flex; align-items: center; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1"><span style="font-size: 12px; color: #ABA39B; font-weight: 800; letter-spacing: 0.1em">MODE TABLETTE · CARNET D’EXPLORATION · T+35:00</span><span style="font-size: 28px; font-weight: 800">Point B · Affleurement</span></div>
+<div style="padding: 8px 14px; border-radius: 14px; background: #252220; display: flex; flex-direction: column; align-items: center"><span style="font-size: 12px; color: #ABA39B">Autonomie</span><span style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 22px; font-weight: 600">85 min</span></div>
+<div style="padding: 8px 14px; border-radius: 14px; background: #252220; display: flex; flex-direction: column; align-items: center"><span style="font-size: 12px; color: #ABA39B">Retour</span><span style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 22px; font-weight: 600">40 min</span></div>
+<div style="padding: 8px 14px; border-radius: 14px; background: #252220; border: 2px solid #1FC48F; display: flex; flex-direction: column; align-items: center"><span style="font-size: 12px; color: #ABA39B">Marge</span><span style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 22px; font-weight: 600; color: #1FC48F">30 min</span></div>
+</header>
+<sc-if value="{{incident}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 16px; background: #2A1210; border: 2px solid #F4605A">
+<span style="color: #F4605A"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20z"></path><path d="M12 10v4"></path><path d="M12 17v.5"></path></svg></span><div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1"><span style="font-size: 19px; font-weight: 800; color: #F4605A">Retour prioritaire · tempête de poussière (simulée)</span><span style="font-size: 14px">Poursuivre : marge −2 min, refusé. Retour immédiat : marge 55 min. Décision transmise par l’habitat.</span></div>
+<a href="HudAlerte.dc.html" style="text-decoration: none; padding: 14px 18px; border-radius: 12px; background: #F4605A; color: #120F0D; font-size: 16px; font-weight: 800">Rentrer</a></div></sc-if>
+<div style="display: flex; gap: 16px; flex-grow: 1; min-height: 0">
+<section style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-size: 13px; color: #ABA39B; font-weight: 800; letter-spacing: 0.1em">OBJECTIFS DU SITE</span><span style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 15px">{{done}} / 3</span></div>
+<sc-for list="{{tasks}}" as="t" hint-placeholder-count="3"><div style="display: flex; align-items: center; gap: 14px; min-height: 56px; padding: 0 16px; border-radius: 14px; background: {{t.bg}}; border: 2px solid {{t.border}}">
+<span style="width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; border: 2px solid {{t.border}}; background: {{t.box}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#120F0D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"></path></svg></span><span style="font-size: 17px; font-weight: 700; flex-grow: 1">{{t.name}}</span><span style="font-size: 13px; font-weight: 700; color: {{t.stateC}}">{{t.state}}</span></div></sc-for>
+<div style="display: flex; gap: 10px; margin-top: 4px"><button onClick="{{photo}}" style="flex: 1 1 0; min-width: 0; min-height: 92px; border-radius: 16px; border: 2px solid #3A3531; background: #252220; color: #F3EFEA; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 800"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>Photographier</button><button onClick="{{observe}}" style="flex: 1 1 0; min-width: 0; min-height: 92px; border-radius: 16px; border: 2px solid #3A3531; background: #252220; color: #F3EFEA; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 800"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"></path></svg>Observer</button><button onClick="{{measure}}" style="flex: 1 1 0; min-width: 0; min-height: 92px; border-radius: 16px; border: 2px solid #3A3531; background: #252220; color: #F3EFEA; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 800"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17 17 3l4 4L7 21z"></path><path d="M7 13l2 2M10 10l2 2M13 7l2 2"></path></svg>Mesurer</button></div>
+<div style="display: flex; gap: 10px"><button onClick="{{sample}}" style="flex: 1 1 0; min-width: 0; min-height: 92px; border-radius: 16px; border: 2px solid #3A3531; background: #252220; color: #F3EFEA; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 800"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"></path><path d="M10 3v14a2 2 0 0 0 4 0V3"></path><path d="M10 11h4"></path></svg>Prélever</button><button onClick="{{note}}" style="flex: 1 1 0; min-width: 0; min-height: 92px; border-radius: 16px; border: 2px solid #3A3531; background: #252220; color: #F3EFEA; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 800"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path></svg>Ajouter une note</button></div>
+</section>
+<section style="width: 360px; display: flex; flex-direction: column; gap: 12px">
+<div style="background: #252220; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 13px; color: #ABA39B; font-weight: 800; letter-spacing: 0.1em">FICHE DE LA ZONE</span>
+<div style="display: flex; gap: 8px; align-items: flex-start"><span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; border: 1px solid #4CC6EA; color: #4CC6EA; font-size: 11px; font-weight: 700; white-space: nowrap"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17 17 3l4 4L7 21z"></path><path d="M7 13l2 2M10 10l2 2M13 7l2 2"></path></svg>Dérivé</span><span style="font-size: 13px; line-height: 1.45">Signature compatible avec des carbonates (CRISM).</span></div>
+<div style="display: flex; gap: 8px; align-items: flex-start"><span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; border: 1px solid #B59CFF; color: #B59CFF; font-size: 11px; font-weight: 700; white-space: nowrap"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"></path></svg>Interprétation</span><span style="font-size: 13px; line-height: 1.45">Indice d’anciennes interactions avec l’eau. Pas une preuve de vie.</span></div>
+</div>
+<div style="background: #252220; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 4px; flex-grow: 1; min-height: 0; overflow: hidden">
+<span style="font-size: 13px; color: #ABA39B; font-weight: 800; letter-spacing: 0.1em">JOURNAL · ENVOYÉ À L’HABITAT</span><sc-for list="{{log}}" as="j" hint-placeholder-count="3"><div style="display: flex; gap: 10px; padding: 8px 0; border-top: 1px solid #3A3531; font-size: 14px"><span style="font-family: 'IBM Plex Mono', ui-monospace, monospace; color: #ABA39B; flex-shrink: 0">{{j.t}}</span><span>{{j.txt}}</span></div></sc-for></div>
+<button onClick="{{extend}}" style="min-height: 56px; border-radius: 14px; border: 2px solid #3A3531; background: transparent; color: #F3EFEA; font-size: 16px; font-weight: 700">Prolonger l’observation · +15 min</button>
+<sc-if value="{{refused}}" hint-placeholder-val="{{false}}"><div role="status" style="padding: 10px 12px; border-radius: 12px; border: 2px solid #F4605A; font-size: 14px; line-height: 1.4"><b style="color: #F4605A">Refusé.</b> La marge passerait à 15 min, sous la réserve de 20 min.</div></sc-if>
+</section></div>
+<footer style="display: flex; gap: 12px"><a href="HudNominal.dc.html" style="flex: 1 1 0; text-decoration: none; min-height: 60px; border-radius: 14px; background: #EE8A1B; color: #120F0D; font-size: 18px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px">Terminer le site et rentrer <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></a></footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"incident": {"editor": "boolean", "default": false}, "$preview": {"width": 1024, "height": 768}}'>
+
+class Component extends DCLogic {
+  state = { photo: false, observe: false, sample: false, refused: false, log: [{ t: 'T+35:02', txt: 'Arrivée au point B' }] };
+  add(key, txt) { const s = this.state; this.setState({ [key]: true, log: [{ t: 'T+' + (35 + s.log.length) + ':10', txt }, ...s.log].slice(0, 5) }); }
+  renderVals() {
+    const s = this.state;
+    const T = [['photo', 'Photographier la formation'], ['observe', 'Enregistrer une observation'], ['sample', 'Documenter un échantillon']];
+    const tasks = T.map(([k, name]) => ({ name, state: s[k] ? 'FAIT' : 'À FAIRE', stateC: s[k] ? '#1FC48F' : '#ABA39B',
+      bg: s[k] ? 'rgba(31,196,143,0.12)' : '#252220', border: s[k] ? '#1FC48F' : '#3A3531', box: s[k] ? '#1FC48F' : 'transparent' }));
+    return { tasks, done: T.filter(([k]) => s[k]).length, log: s.log, refused: s.refused, incident: this.props.incident ?? false,
+      photo: () => this.add('photo', 'Photo géolocalisée · formation stratifiée'),
+      observe: () => this.add('observe', 'Observation · teinte claire, grain fin'),
+      measure: () => this.add('_m', 'Mesure · pendage ≈ 12°'),
+      sample: () => this.add('sample', 'Échantillon simulé S-01 · documenté'),
+      note: () => this.add('_n', 'Note vocale enregistrée'),
+      extend: () => this.setState({ refused: true }) };
+  }
+}
+
+</script>
+</body>
+</html>

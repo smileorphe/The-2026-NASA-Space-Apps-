@@ -1,0 +1,166 @@
+{
+  "note": "Coordonnées en longitude/latitude Mars 2000 (EPSG:104905). Les couches « dérivées » sont produites par pipeline/ à partir des données de l'équipe data (nasa/).",
+  "projection": "Mars 2000 géographique (EPSG:104905) · calculs en projection locale à pixels carrés (équirectangulaire lat_ts 18,55°)",
+  "layers": [
+    {
+      "id": "basemap",
+      "name": "Fond global · MOLA relief ombré",
+      "source": "NASA Mars Trek WMTS · MGS MOLA colorized shaded relief (Mars_MGS_MOLA_ClrShade_merge_global_463m)",
+      "date": "[date à compléter]",
+      "resolution": "463 m (identifiant de la couche)",
+      "projection": "EPSG:104905 · équirectangulaire",
+      "kind": "der",
+      "wmts": {
+        "_source": "Valeurs relevées dans public/data/wmts/mola_clrshade_global_WMTSCapabilities.xml (GetCapabilities du 2026-11-15). Même anomalie que HiRISE : deux niveaux « 0 » et « 1 » en double sont ignorés ; pyramide régulière 0–7.",
+        "url": "https://trek.nasa.gov/tiles/Mars/EQ/Mars_MGS_MOLA_ClrShade_merge_global_463m/1.0.0//{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.jpg",
+        "layer": "Mars_MGS_MOLA_ClrShade_merge_global_463m",
+        "matrixSet": "default028mm",
+        "format": "image/jpeg",
+        "style": "default",
+        "crs": "urn:ogc:def:crs:EPSG::104905",
+        "topLeftCorner": [-180.0, 90.0],
+        "tileSize": 256,
+        "matrixWidth0": 2,
+        "maxMatrix": 7,
+        "boundingBox": [-180.0, -89.9991635, 179.9983271, 90.0],
+        "localTiles": "/tiles/mola/{TileMatrix}/{TileRow}/{TileCol}.jpg"
+      }
+    },
+    {
+      "id": "ctx",
+      "name": "Fond régional · CTX",
+      "kind": "obs",
+      "source": "NASA Mars Trek WMTS · MRO CTX, Mosaic Global Uncontrolled (Caltech), beta01 (CTX_beta01_uncontrolled_5m_Caltech)",
+      "date": "mosaïque cataloguée le 2020-06-25",
+      "resolution": "nominale 5 m/px (identifiant) · affichée jusqu’au niveau 10 ≈ 20 m/px",
+      "projection": "EPSG:104905 · équirectangulaire",
+      "wmts": {
+        "_source": "Valeurs relevées dans public/data/wmts/ctx_global_beta01_WMTSCapabilities.xml (GetCapabilities du 2026-11-15). Tuiles de 512 px servies par astro.arcgis.com (gabarit sans {Style}). Doublons « 0 » et « 1 » ignorés ; pyramide régulière 0–11. Les tuiles du niveau 11 autour de Jezero sont tronquées côté serveur (PNG incomplet, reproductible) alors qu’elles sont intactes ailleurs : la couche est plafonnée au niveau 10.",
+        "url": "https://astro.arcgis.com/arcgis/rest/services/OnMars/CTX/MapServer/tile/{TileMatrix}/{TileRow}/{TileCol}",
+        "layer": "CTX_beta01_uncontrolled_5m_Caltech",
+        "matrixSet": "default028mm",
+        "format": "image/png",
+        "style": "default",
+        "crs": "urn:ogc:def:crs:EPSG::104905",
+        "topLeftCorner": [-180.0, 90.0],
+        "tileSize": 512,
+        "matrixWidth0": 2,
+        "maxMatrix": 11,
+        "maxUsableMatrix": 10,
+        "boundingBox": [-180.0, -90.0, 180.0, 90.0],
+        "localTiles": "/tiles/ctx/{TileMatrix}/{TileRow}/{TileCol}.png"
+      }
+    },
+    {
+      "id": "imagery",
+      "name": "Imagerie · HiRISE",
+      "source": "NASA Mars Trek WMTS · MRO HiRISE, Jezero Mosaic, Controlled (JEZ_hirise_soc_006_orthoMosaic_25cm)",
+      "date": "[date d’acquisition à compléter]",
+      "resolution": "nominale 25 cm/px",
+      "projection": "EPSG:104905 · équirectangulaire",
+      "kind": "obs",
+      "wmts": {
+        "_source": "Valeurs relevées dans public/data/wmts/hirise_jezero_WMTSCapabilities.xml (GetCapabilities du 2026-11-15). Le document liste en fin de TileMatrixSet deux entrées « 0 » et « 1 » en double avec d’autres échelles : elles sont ignorées, seule la pyramide régulière 0–17 est utilisée.",
+        "url": "https://trek.nasa.gov/tiles/Mars/EQ/JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first_dd/1.0.0//{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.png",
+        "layer": "JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first_dd",
+        "matrixSet": "default028mm",
+        "format": "image/png",
+        "style": "default",
+        "crs": "urn:ogc:def:crs:EPSG::104905",
+        "topLeftCorner": [-180.0, 90.0],
+        "tileSize": 256,
+        "matrixWidth0": 2,
+        "maxMatrix": 17,
+        "boundingBox": [77.2229331, 18.3067994, 77.583964, 18.669315],
+        "localTiles": "/tiles/hirise/{TileMatrix}/{TileRow}/{TileCol}.png"
+      },
+      "effectiveResolution": "≈ 1–2 m/px"
+    },
+    {
+      "id": "topo",
+      "name": "Topographie · DTM HiRISE",
+      "source": "JEZ_hirise_soc_006_DTM_MOLAtopography_DeltaGeoid_1m (équipe data) → extrait de la zone, moyenne à 5 m (pipeline/dtm.py)",
+      "date": "[date à compléter]",
+      "resolution": "1 m (source) · 5 m (calculs)",
+      "projection": "équirectangulaire lat_ts 18,55° (pixels carrés)",
+      "kind": "obs"
+    },
+    {
+      "id": "slope",
+      "name": "Pentes (DTM 5 m)",
+      "source": "pipeline/dtm.py + slope_tiles.py · classes ≤10° / 10–15° / 15–20° / >20°",
+      "date": "tracé v3",
+      "resolution": "5 m",
+      "projection": "tuiles géographiques EPSG:104905 (équivalent gdal2tiles --profile=geodetic --xyz)",
+      "kind": "der",
+      "wmts": {
+        "_source": "Tuiles locales produites par pipeline/slope_tiles.py (même grille que les couches Mars Trek).",
+        "url": "/tiles/slope/{TileMatrix}/{TileRow}/{TileCol}.png",
+        "layer": "slope",
+        "matrixSet": "local",
+        "format": "image/png",
+        "style": "default",
+        "crs": "urn:ogc:def:crs:EPSG::104905",
+        "topLeftCorner": [-180.0, 90.0],
+        "tileSize": 256,
+        "matrixWidth0": 2,
+        "maxMatrix": 15,
+        "boundingBox": [77.3356207, 18.5185255, 77.3898958, 18.5725958]
+      }
+    },
+    {
+      "id": "crism",
+      "name": "Minéralogie · CRISM 040ff (emprise)",
+      "source": "marginal_region_040ff.shp (équipe data) · image CRISM HRL000040FF",
+      "date": "shapefile créé le 2019-10-22",
+      "resolution": "≈ 18 m (pixels CRISM)",
+      "projection": "équirectangulaire lat_ts 15°, sphère 3 394 840 m → lon/lat",
+      "kind": "der"
+    },
+    {
+      "id": "crism_regions",
+      "name": "Régions CRISM (MC, MT, sable, mélange)",
+      "source": "marginal_region_040ff.shp · légende Zastrow & Glotch 2021, GRL, doi:10.1029/2020GL092365 (pipeline/vectors.py)",
+      "date": "2021",
+      "resolution": "≈ 18 m (pixels CRISM)",
+      "projection": "lon/lat Mars 2000",
+      "kind": "der"
+    },
+    {
+      "id": "geology",
+      "name": "Géologie · USGS SIM 3464",
+      "source": "Nili.gdb : GeoUnits_v1, LinearFeatures, LandingEllipse (équipe data)",
+      "date": "2020",
+      "resolution": "1:75 000",
+      "projection": "MTM clon 77,5° E → lon/lat",
+      "kind": "int"
+    },
+    {
+      "id": "route",
+      "name": "Tracé de mission",
+      "source": "route_aller.geojson v3 (pipeline/route.py) · B dans une région Marginal Carbonates",
+      "date": "v3",
+      "resolution": "—",
+      "projection": "lon/lat Mars 2000",
+      "kind": "der"
+    },
+    {
+      "id": "routes",
+      "name": "Itinéraires calculés",
+      "source": "A* dans le navigateur (domain/routing.ts) sur la grille 5 m de pipeline/terrain_export.py · plus court (distance seule) et moindre coût = (1 + α·pente) × facteur sable ; contrôlé contre skimage (pipeline/paths.py, 1 %)",
+      "date": "v3",
+      "resolution": "5 m",
+      "projection": "lon/lat Mars 2000",
+      "kind": "der"
+    },
+    {
+      "id": "return_zone",
+      "name": "Zone de retour à pied",
+      "source": "Champ de coût depuis A calculé dans le navigateur (Dijkstra, grille 5 m) · seuil courant = autonomie − réserve − (aller + observation) ; contrôlé contre pipeline/paths.py",
+      "date": "v3",
+      "resolution": "5 m",
+      "projection": "lon/lat Mars 2000",
+      "kind": "sim"
+    }
+  ]
+}

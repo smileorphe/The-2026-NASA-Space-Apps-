@@ -1,0 +1,44 @@
+import { useMission } from '../store';
+import { ProvenanceTag } from './ProvenanceTag';
+
+/** Tableau des sources : couches (public/data/layers.json), analyse du tracé, paramètres simulés. */
+export function ProvenanceTable() {
+  const { data } = useMission();
+  return (
+    <table className="table">
+      <thead>
+        <tr><th>COUCHE</th><th>SOURCE</th><th>RÉSOLUTION · DATE</th><th>NATURE</th></tr>
+      </thead>
+      <tbody>
+        {data.layers.map((l) => (
+          <tr key={l.id}>
+            <td>{l.name}</td>
+            <td>{l.source}</td>
+            <td className="small">
+              <span className="mono">{l.effectiveResolution ? `résolution ${l.resolution}` : l.resolution} · {l.date}</span>
+              {l.effectiveResolution && (
+                <span className="row" style={{ marginTop: 4, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+                  <ProvenanceTag kind="obs" />
+                  <span>résolution effective mesurée {l.effectiveResolution}</span>
+                </span>
+              )}
+            </td>
+            <td><ProvenanceTag kind={l.kind} /></td>
+          </tr>
+        ))}
+        <tr>
+          <td>Analyse du tracé</td>
+          <td>{data.analysisSource === 'api' ? 'Backend FastAPI · DTM' : 'Calcul local (pipeline/route_analysis.py · DTM 5 m)'}</td>
+          <td className="mono small">—</td>
+          <td><ProvenanceTag kind="der" /></td>
+        </tr>
+        <tr>
+          <td>Autonomie, seuils, imprévus</td>
+          <td>Paramètres de démonstration</td>
+          <td className="mono small">—</td>
+          <td><ProvenanceTag kind="sim" /></td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
