@@ -30,6 +30,9 @@ ROI_PATH = Path(_env("ROI_PATH", str(DATA_DIR / "data_roi" / "marginal_region_04
 ROUTE_PATH = Path(_env("ROUTE_PATH", str(BACKEND_DATA / "route.geojson")))
 SOURCES_PATH = BACKEND_DATA / "sources.json"
 INCIDENTS_DIR = BACKEND_DATA / "incidents"
+MINERALS_NC = Path(_env("MINERALS_NC", str(
+    DATA_DIR / "data_models" / "040ff_2cuts_final_standard_tomurray.nc"
+)))
 METEO_SUMMARY = BACKEND_DATA / "meteo" / "meda_summary.json"
 RAD_SUMMARY = BACKEND_DATA / "radiation" / "rad_summary.json"
 
@@ -58,6 +61,12 @@ WALK_SPEED_KMH = _env("WALK_SPEED_KMH", 2.5)
 AUTONOMY_MIN = _env("AUTONOMY_MIN", 120.0)
 RESERVE_MIN = _env("RESERVE_MIN", 20.0)
 CAUTION_BUFFER_MIN = _env("CAUTION_BUFFER_MIN", 15.0)  # orange si marge < réserve + ce tampon
+
+# --- Minéralogie (cartes d'abondance Zastrow & Glotch 2021) ------------------
+# Seuil de démonstration pour annoncer « signature compatible avec des carbonates » au point B,
+# appliqué à la moyenne 3x3 pixels (≈ 108 m) pour tolérer un petit décalage de recalage.
+# Repère : médiane de la zone ≈ 14 %, 90e percentile ≈ 31 %.
+CARBONATE_MIN_PCT = _env("CARBONATE_MIN_PCT", 20.0)
 
 # --- Météo et radiations (seuils de simulation, pas des normes NASA) ---------
 WIND_CAUTION_MS = _env("WIND_CAUTION_MS", 15.0)

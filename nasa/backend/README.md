@@ -38,6 +38,7 @@ Documentation interactive : http://127.0.0.1:8000/docs
 | `GET /weather`, `GET /weather/hourly` | Météo MEDA réelle (Jezero) + critère GO / NO-GO |
 | `GET /radiation`, `GET /radiation/eva` | Dose RAD (Curiosity, Gale) et dose estimée de la sortie |
 | `GET /briefing` | Décision GO / GO sous réserve / NO-GO |
+| `GET /minerals/point`, `GET /minerals/spectrum` | Composition minérale et spectre CRISM (par défaut au point B) |
 | `GET /3d` | Vue 3D réaliste (index.html + données réelles de `nasa/assets/`) |
 | `GET /route` | Tracé GeoJSON : habitat (A), waypoints, point B, aller, retour |
 | `GET /route/stats?leg=aller\|retour` | Distance, altitudes, dénivelé ±, pente max/moyenne, durée, profil, segments difficiles |

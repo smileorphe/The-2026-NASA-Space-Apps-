@@ -69,7 +69,9 @@ button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--ac
     <button id="speed" type="button" hidden>Vitesse ×4</button>
     <button id="fx" class="on" type="button">Effets cinéma</button>
     <button id="slope" type="button">Couche pentes</button>
+    <button id="mineral" type="button" hidden>Couche minéraux</button>
   </div>
+  <div class="legend" id="legendMin"><span><i style="background:#00c8be"></i>Carbonates</span><span><i style="background:#9650d2"></i>Argiles</span><span>CRISM, Zastrow &amp; Glotch 2021 · pixels de 36 m</span></div>
   <div class="legend" id="legend"><span><i style="background:#3cc86e"></i><span id="lg0">0–10°</span></span><span><i style="background:#f0d23c"></i><span id="lg1">10–15°</span></span><span><i style="background:#f58228"></i><span id="lg2">15–20°</span></span><span><i style="background:#dc2828"></i><span id="lg3">&gt; 20° interdit</span></span></div>
   <div class="hud" id="hud">Glissez pour tourner autour du site, pincez ou molette pour zoomer.</div>
 </div>
@@ -132,9 +134,12 @@ app.appendChild(renderer.domElement);
 const loader=new THREE.TextureLoader();
 const load=u=>new Promise((ok,ko)=>loader.load(u,ok,undefined,()=>ko(new Error('texture '+u+' introuvable'))));
 const [albedo,normalTex,slopeTex]=await Promise.all([load('assets/albedo.jpg'),load('assets/normal.jpg'),load('assets/slope.png')]);
+/* Couche minéraux (facultative) : produite par export_3d.py à partir des cartes d'abondance CRISM */
+const hasMineral=!!(data.layers&&data.layers.minerals);
+const mineralTex=hasMineral?await load('assets/'+data.layers.minerals.file):new THREE.DataTexture(new Uint8Array(4),1,1);
 const aniso=renderer.capabilities.getMaxAnisotropy();
-albedo.colorSpace=THREE.SRGBColorSpace; slopeTex.colorSpace=THREE.SRGBColorSpace;
-for(const t of [albedo,normalTex,slopeTex])t.anisotropy=aniso;
+albedo.colorSpace=THREE.SRGBColorSpace; slopeTex.colorSpace=THREE.SRGBColorSpace; mineralTex.colorSpace=THREE.SRGBColorSpace;
+for(const t of [albedo,normalTex,slopeTex,mineralTex])t.anisotropy=aniso;
 
 const scene=new THREE.Scene();
 scene.fog=new THREE.FogExp2(0xb08060,0.00018);
@@ -184,16 +189,19 @@ const det=detailTexture();
 /* Terrain principal : géométrie depuis la grille Python, texture et normales Python, micro-détail et couche pentes en shader */
 const tGeo=new THREE.PlaneGeometry(EXT,EXT,G-1,G-1); tGeo.rotateX(-Math.PI/2);
 const tp=tGeo.attributes.position; for(let k=0;k<tp.count;k++)tp.setY(k,H[k]); tGeo.computeVertexNormals();
-const overlay={value:0};
+const overlay={value:0}, mineralOv={value:0};
 const tMat=new THREE.MeshStandardMaterial({map:albedo,normalMap:normalTex,normalScale:new THREE.Vector2(1.3,1.3),roughness:.95,metalness:0});
 tMat.onBeforeCompile=sh=>{
   sh.uniforms.detailMap={value:det}; sh.uniforms.overlayMap={value:slopeTex}; sh.uniforms.overlayOpacity=overlay;
+  sh.uniforms.mineralMap={value:mineralTex}; sh.uniforms.mineralOpacity=mineralOv;
   sh.fragmentShader=sh.fragmentShader
-   .replace('#include <common>','#include <common>\nuniform sampler2D detailMap;uniform sampler2D overlayMap;uniform float overlayOpacity;')
+   .replace('#include <common>','#include <common>\nuniform sampler2D detailMap;uniform sampler2D overlayMap;uniform float overlayOpacity;uniform sampler2D mineralMap;uniform float mineralOpacity;')
    .replace('#include <map_fragment>',`#include <map_fragment>
      float dd=length(vViewPosition);
      float d1=texture2D(detailMap,vMapUv*520.).r, d2=texture2D(detailMap,vMapUv*70.).r;
      diffuseColor.rgb*=mix(1.,d1*1.18,1.-smoothstep(20.,220.,dd))*mix(1.,d2*1.18,.55*(1.-smoothstep(250.,1600.,dd)));
+     vec4 mv=texture2D(mineralMap,vMapUv);
+     diffuseColor.rgb=mix(diffuseColor.rgb,mv.rgb,mv.a*mineralOpacity);
      vec4 ov=texture2D(overlayMap,vMapUv);
      diffuseColor.rgb=mix(diffuseColor.rgb,ov.rgb,ov.a*overlayOpacity);`);
 };
@@ -334,6 +342,11 @@ $('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'Pause':'M
 $('speed').onclick=()=>{spi=(spi+1)%speeds.length;$('speed').textContent='Vitesse ×'+speeds[spi];};
 $('fx').onclick=()=>{fxOn=!fxOn;$('fx').classList.toggle('on',fxOn);};
 $('slope').onclick=()=>{const on=overlay.value<.5;overlay.value=on?.85:0;$('slope').classList.toggle('on',on);$('legend').classList.toggle('show',on);};
+$('mineral').hidden=!hasMineral;
+$('mineral').onclick=()=>{const on=mineralOv.value<.5;mineralOv.value=on?.9:0;$('mineral').classList.toggle('on',on);$('legendMin').classList.toggle('show',on);};
+/* Raccourcis d'URL pour la démo : /3d#mineraux, /3d#pentes */
+if(hasMineral&&location.hash.includes('mineraux'))$('mineral').click();
+if(location.hash.includes('pentes'))$('slope').click();
 setMode('orbit');
 let drag=null;const cv=renderer.domElement;
 cv.addEventListener('pointerdown',e=>{if(mode==='astro'){drag={x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId);}});

@@ -114,6 +114,55 @@ def slope_overlay(dem: np.ndarray, size: int) -> Image.Image:
     return Image.fromarray(rgba, "RGBA").resize((size, size), Image.NEAREST)
 
 
+MINERAL_LEGEND = [
+    {"nom": "Carbonates", "rgb": [0, 200, 190], "regle": "carbonate ≥ 15 % (opaque à 35 %)"},
+    {"nom": "Argiles (phyllosilicates)", "rgb": [150, 80, 210], "regle": "argiles ≥ 35 % là où le carbonate est faible"},
+]
+
+
+def mineral_overlay(size: int) -> Image.Image | None:
+    """Carte minérale (vert-bleu = carbonates, violet = argiles) reprojetée de CRISM_LAT_15_0
+    (pixels de 36 m) vers la projection HiRISE de la zone. Source : data_models (Zastrow & Glotch 2021)."""
+    import netCDF4
+    from rasterio.crs import CRS
+    from rasterio.transform import Affine, from_origin
+    from rasterio.warp import Resampling as WR, reproject
+
+    if not config.MINERALS_NC.exists():
+        print("  (cartes d'abondance absentes : couche minéraux ignorée)")
+        return None
+    ds = netCDF4.Dataset(config.MINERALS_NC)
+    t = [float(v) for v in np.ravel(ds.getncattr("transform"))]
+    src_tr = Affine(t[1], t[2], t[0], t[4], t[5], t[3])  # GDAL (x0, dx, rx, y0, ry, dy) -> Affine
+    src_crs = CRS.from_wkt(ds.getncattr("crs"))
+    groups = [str(g) for g in ds["Group"][:]]
+    with rasterio.open(config.DTM_PATH) as dtm:
+        dst_crs = dtm.crs
+    res = EXT / size
+    dst_tr = from_origin(X0, Y1, res, res)
+    out = {}
+    for name in ("Carbonate", "Phyllosilicate"):
+        src = np.ma.filled(ds["gnc"][groups.index(name)].astype("float32"), np.nan)
+        dst = np.full((size, size), np.nan, dtype="float32")
+        reproject(src, dst, src_transform=src_tr, src_crs=src_crs, src_nodata=np.nan,
+                  dst_transform=dst_tr, dst_crs=dst_crs, dst_nodata=np.nan, resampling=WR.bilinear)
+        out[name] = dst
+    ds.close()
+    carb, phy = out["Carbonate"], out["Phyllosilicate"]
+    tc = np.clip((np.nan_to_num(carb) - 15) / 20, 0, 1)
+    tp = np.clip((np.nan_to_num(phy) - 35) / 35, 0, 1) * (1 - tc)
+    rgba = np.zeros((size, size, 4), dtype="float32")
+    for col, w in ((MINERAL_LEGEND[0]["rgb"], tc), (MINERAL_LEGEND[1]["rgb"], tp)):
+        rgba[..., :3] += np.array(col, dtype="float32") * w[..., None]
+    alpha = np.maximum(tc, 0.7 * tp)
+    rgba[..., :3] /= np.maximum(tc + tp, 1e-6)[..., None]
+    rgba[..., 3] = alpha * 230
+    rgba[~np.isfinite(carb)] = 0
+    valid = np.isfinite(carb).mean() * 100
+    print(f"  carte minérale : {valid:.0f} % de la zone couverte par CRISM")
+    return Image.fromarray(rgba.astype("uint8"), "RGBA")
+
+
 def detect_rocks(max_rocks: int) -> list[list[float]]:
     """Détection simple de blocs sur l'orthoimage 25 cm : un bloc éclairé laisse une ombre
     sombre et compacte. On cherche les taches sombres isolées de 0,7 à 5 m.
@@ -203,9 +252,19 @@ def main():
     albedo(args.tex).save(OUT / "albedo.jpg", quality=90)
     normal_map(dem, args.tex).save(OUT / "normal.jpg", quality=92)
     slope_overlay(dem, min(args.tex, 3000)).save(OUT / "slope.png", optimize=True)
+    files = ["data.json", "albedo.jpg", "normal.jpg", "slope.png"]
+    mineral = mineral_overlay(1500)
+    if mineral is not None:
+        mineral.save(OUT / "minerals.png", optimize=True)
+        files.append("minerals.png")
+        data["layers"] = {"minerals": {
+            "file": "minerals.png", "legend": MINERAL_LEGEND,
+            "source": "Cartes d'abondance CRISM 040FF, Zastrow & Glotch (2021), pixels de 36 m",
+        }}
+        (OUT / "data.json").write_text(json.dumps(data, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
 
-    for f in ("data.json", "albedo.jpg", "normal.jpg", "slope.png"):
-        print(f"  {f:11s} {(OUT / f).stat().st_size / 1e6:6.1f} Mo")
+    for f in files:
+        print(f"  {f:12s} {(OUT / f).stat().st_size / 1e6:6.1f} Mo")
     print(f"Relief : {hmin + ALT0:.0f} à {hmax + ALT0:.0f} m ; habitat ({hx:.0f}, {hz:.0f}) ; "
           f"cible ({tx:.0f}, {tz:.0f}) ; itinéraire {len(px)} points")
     print(f"-> {OUT}")

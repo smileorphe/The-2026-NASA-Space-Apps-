@@ -80,7 +80,8 @@ Tout est dans `nasa/data/`.
 |---|---|---|---|---|
 | `JEZ_hirise_soc_006_DTM_MOLAtopography_DeltaGeoid_1m_Eqc_latTs0_lon0_blend40.tif` | GeoTIFF float32, 21 400 × 21 488 px | **Relief HiRISE 1 m** (mosaïque Mars 2020 TRN), « pas de donnée » = −3,4e38 | 1,8 Go | ✅ calculs + pentes |
 | `JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first.tif` | **BigTIFF** uint8, 85 600 × 85 952 px | **Orthoimage HiRISE 25 cm**, niveaux de gris, « pas de donnée » = 0 | 6,9 Go | ✅ tuiles de fond |
-| `data_input/*_ssa.img` + `.hdr` | ENVI, BSQ, float32, little-endian, 285 × 478 px | Cubes CRISM d'albédo de diffusion simple. 244 bandes (2,65 → ~1 µm), 194 pour les `_2cuts` | 1,6 Go | ⏳ via `data_models.zip` |
+| `data_input/*_ssa.img` + `.hdr` | ENVI, BSQ, float32, little-endian, 285 × 478 px | Cubes CRISM d'albédo de diffusion simple. 244 bandes (2,65 → ~1 µm), 194 pour les `_2cuts` | 1,6 Go | Remplacés par `data_models` (résultats déjà calculés) |
+| `data_models/*.nc` | **NetCDF4**, géoréférencé (`CRISM_LAT_15_0`, pixels de 36 m) | Résultats du démélange : % de 8 groupes et 21 minéraux par pixel, spectres mesuré et modélisé, 60 indices CRISM | 20 Go | ✅ placement du point B |
 | `data_roi/marginal_region_040ff.*` | Shapefile, 897 polygones (pixels CRISM) | **Région des carbonates marginaux** (Zastrow & Glotch 2021) | 186 Ko | ✅ choix du point B |
 | `code_unmixing/` | Scripts Davinci + HDF n,k | Code du démélange spectral de l'article | 92 Ko | ❌ pas nécessaire si `data_models.zip` |
 | `sim3464_JezeroNili_FINAL/` | Esri File Geodatabase + GeoTIFF | Carte géologique USGS SIM 3464, CTX 20 m / 6 m, HRSC, THEMIS | 492 Mo | ✅ THEMIS IR de jour (couche thermique) ; ⏳ géologie |
@@ -100,7 +101,7 @@ latitude standard 0°, méridien 0°. Emprise : 77,22–77,58°E, 18,31–18,67�
 | `code_unmixing.zip` | 49 Ko | ✅ |
 | `data_input.zip` | 1,4 Go | ✅ |
 | `data_roi.zip` | 61 Ko | ✅ |
-| `data_models.zip` | **6,8 Go** | ❌ **à télécharger** (cartes d'abondance probables) |
+| `data_models.zip` | **6,8 Go** | ✅ **reçu et extrait** (20 Go, 18 fichiers NetCDF) : cartes d'abondance |
 
 ---
 
@@ -132,14 +133,28 @@ latitude standard 0°, méridien 0°. Emprise : 77,22–77,58°E, 18,31–18,67�
 | Tracé | **Prédéfini en GeoJSON**, A* non implémenté | Guide v2 : A* = bonus après le MVP |
 | Scénario EVA-03 | Adapté au vrai terrain, distances non figées | Choix de l'équipe |
 
-**Points provisoires** (dans `data/route.geojson`, à faire valider par l'équipe) :
+**Points (version 2 du 15/11, dans `data/route.geojson`)** — déplacés vers la zone riche en carbonate,
+à la demande de l'équipe :
 
 | Point | Coordonnées | Pourquoi ici |
 |---|---|---|
-| Habitat (A) | 77,38538°E / 18,52298°N | Terrain le plus plat du quart sud-est (pente < 4° sur 60 m) |
-| WP1 « Plaine sud » | 77,38130°E / 18,52700°N | Déplacé pour éviter une pente de 20° (pente max de l'aller : 20,1° → 14,4°) |
-| WP2 « Approche des affleurements » | 77,38150°E / 18,53650°N | — |
-| Cible (B) | 77,38035°E / 18,54224°N | Amas dense de pixels de la ROI carbonates, à ~1,2 km de l'habitat |
+| Habitat (A) | 77,36708°E / 18,54888°N | Terrain très plat (pente max 1,6° sur 60 m), près du centre de la zone, à plus de 400 m des bords |
+| WP1 « Plateau central » | 77,36235°E / 18,54938°N | Sommet du tracé de moindre pente |
+| WP2 « Approche des affleurements » | 77,35763°E / 18,55174°N | Entrée dans la zone carbonatée |
+| Cible (B) | 77,34991°E / 18,55196°N | **36,6 % de carbonate** (moyenne 3 × 3 pixels : 35,9 %), soit parmi les 1 % de pixels les plus riches de la zone ; dans la ROI ; pente locale 5° |
+
+**Méthode de placement** :
+1. Amas de carbonate ≥ 32 % (moyenne 3 × 3 pixels, cartes d'abondance de `data_models`) dans la ROI, avec une
+   pente locale < 12°.
+2. Habitat : zone de 60 m la plus plate, à 1–1,4 km de B et à plus de 400 m des bords.
+3. Tracés : chemin de moindre coût sur une grille de pentes de 10 m (coût = longueur × (1 + (pente/8)²), pentes > 15°
+   interdites), simplifié à 12 m près. Pour le retour, les cellules à moins de 80 m de l'aller coûtent 4 fois plus,
+   ce qui donne un chemin différent. **Ce calcul a seulement servi à dessiner le GeoJSON** : l'application reste
+   sur un tracé prédéfini, comme le demande le guide.
+
+**Version 1 abandonnée** : habitat 77,38538 / 18,52298, cible 77,38035 / 18,54224. Une fois `data_models` reçu,
+il est apparu que cette cible n'avait que **8 % de carbonate** (53 % d'argiles), et l'habitat était à 160 m du bord
+de la zone.
 
 ---
 
@@ -155,6 +170,7 @@ nasa/backend/
 │   ├── autonomy.py    Formule unique d'autonomie + règle d'ajout d'arrêt
 │   ├── gate.py        Scope & Data Gate
 │   ├── environment.py Météo (MEDA) et radiations (RAD) : lecture + critères GO / NO-GO
+│   ├── minerals.py    Cartes d'abondance CRISM (data_models) : composition, spectre, contrôle carbonate
 │   └── route.py       Chargement et validation du GeoJSON
 ├── scripts/
 │   ├── fetch_donki.py Récupère et met en cache un événement DONKI réel
@@ -171,7 +187,7 @@ nasa/backend/
 │   ├── radiation/     Résumé + détail RAD (JSON, CSV)
 │   ├── meda_raw/, rad_raw/   CSV / TXT bruts (cache, non versionnés)
 │   └── tiles/         Tuiles PNG + metadata.json
-├── tests/             28 tests (calculs + API)
+├── tests/             32 tests (calculs + API)
 ├── docs/              Aperçus (zone, vue 3D)
 ├── requirements.txt
 └── README.md
@@ -195,6 +211,7 @@ d'environnement `EVA_<NOM>` (exemple : `set EVA_WALK_SPEED_KMH=3`) :
 | `GAIN_THRESHOLD_M` | 0,5 | Seuil anti-bruit du cumul de dénivelé |
 | `WIND_CAUTION_MS` / `WIND_NOGO_MS` | 15 / 25 | Vent (moyenne 1 min) : orange / rouge |
 | `AIR_TEMP_MIN_C` | −90 | Température d'air sous laquelle la sortie est NO-GO |
+| `CARBONATE_MIN_PCT` | 20 | % de carbonate minimal (moyenne 3 × 3) au point B pour valider le Data Gate |
 | `CAREER_LIMIT_MSV` | 600 | Limite de carrière NASA, affichée comme repère |
 
 Ce sont des **valeurs de démonstration**, pas des normes NASA (guide §8).
@@ -211,6 +228,8 @@ Ce sont des **valeurs de démonstration**, pas des normes NASA (guide §8).
 | GET | `/tiles/{couche}/{z}/{x}/{y}.png` | Tuiles (`ortho` z13–18, `slope` z13–17, `thermal` z13–16) |
 | GET | `/weather` | Météo MEDA du dernier sol + critère GO / NO-GO |
 | GET | `/weather/hourly` | Profil heure par heure (air, sol, pression, vent) |
+| GET | `/minerals/point?lon=&lat=` | Composition minérale (% par groupe et par minéral, moyenne 3 × 3, erreur d'ajustement). Par défaut : le point B |
+| GET | `/minerals/spectrum?lon=&lat=` | Spectre mesuré et modélisé (171 longueurs d'onde, 1,04–2,49 µm). Par défaut : le point B |
 | GET | `/radiation` | Débit de dose RAD |
 | GET | `/radiation/eva?duration_min=` | Dose estimée de la sortie (par défaut : durée du plan) |
 | GET | `/briefing` | Décision GO / GO sous réserve / NO-GO, avec le détail par critère |
@@ -226,34 +245,31 @@ Ce sont des **valeurs de démonstration**, pas des normes NASA (guide §8).
 | GET | `/incidents` | Liste des imprévus enregistrés |
 | GET | `/incidents/{id}` | Détail d'un imprévu |
 
-### Exemples de réponses (valeurs réelles du tracé provisoire)
+### Exemples de réponses (valeurs réelles du tracé, version 2)
 
 `GET /route/stats?leg=aller&profile=false`
 ```json
 {
-  "distance_m": 1240.2,
-  "elevation_min_m": -2449.26, "elevation_max_m": -2401.8, "elevation_range_m": 47.46,
-  "elevation_gain_m": 55.9, "elevation_loss_m": 43.7,
-  "slope_max_deg": 14.4, "slope_mean_deg": 4.7,
-  "duration_walk_min": 29.8,
+  "distance_m": 1020.4,
+  "elevation_min_m": -2412.31, "elevation_max_m": -2375.04, "elevation_range_m": 37.28,
+  "elevation_gain_m": 38.9, "elevation_loss_m": 1.9,
+  "slope_max_deg": 7.2, "slope_mean_deg": 2.5,
+  "duration_walk_min": 24.5,
   "nodata_fraction": 0.0,
-  "waypoint_distances_m": [0.0, 330.7, 893.9, 1240.2],
-  "difficult_segments": [
-    {"from_m": 230.0, "to_m": 270.0, "slope_max_deg": 14.4, "level": "attention"},
-    {"from_m": 320.0, "to_m": 330.0, "slope_max_deg": 13.4, "level": "attention"},
-    {"from_m": 420.0, "to_m": 470.0, "slope_max_deg": 14.1, "level": "attention"}
-  ]
+  "waypoint_distances_m": [0.0, 170.8, 212.1, 278.4, 406.7, 483.2, 586.4, 1020.4],
+  "difficult_segments": []
 }
 ```
+`waypoint_distances_m` donne la distance cumulée à chaque **sommet** de la ligne (pas seulement aux waypoints nommés).
 Avec `profile=true` (par défaut), on reçoit aussi `profile` : `[{"d": distance_m, "z": altitude_m, "slope": degrés}, …]`
 tous les 10 m, pour tracer le profil d'altitude.
 
-Retour : 1 275,9 m, pente max 16,5°, 30,6 min.
+Retour : 1 255,6 m, pente max 8,4°, 30,1 min, aucun passage difficile.
 
 `GET /autonomy/plan`
 ```json
-{"autonomy_min": 120.0, "outbound_remaining_min": 29.8, "observation_min": 15.0,
- "return_min": 30.6, "reserve_min": 20.0, "margin_min": 44.6,
+{"autonomy_min": 120.0, "outbound_remaining_min": 24.5, "observation_min": 15.0,
+ "return_min": 30.1, "reserve_min": 20.0, "margin_min": 50.4,
  "status": "vert", "message": "Marge suffisante : poursuivre.", "simulated": true}
 ```
 
@@ -306,10 +322,18 @@ physique de consommation d'oxygène. Toutes les réponses portent `"simulated": 
 |---|---|
 | Le DTM couvre tout le tracé | ✅ |
 | Le point B est dans la ROI carbonates (shapefile Zastrow & Glotch) | ✅ |
-| La signature carbonate est confirmée au point B | ⏳ **en attente de `data_models.zip`** |
+| La signature carbonate est confirmée au point B | ✅ **36,6 % de carbonate** (moyenne 3 × 3 : 35,9 %, seuil 20 %), lu automatiquement dans les cartes d'abondance `data_models` |
 
-Verdict : **`incomplet`**. Il passera à `valide` quand la troisième vérification sera branchée.
-Tant que ce n'est pas le cas, **ne pas annoncer de détection minérale** (règle non négociable du guide).
+Verdict de `/gate` : **`valide`**.
+
+**Règle du contrôle carbonate** (`app/minerals.py`, `carbonate_check`) : on prend le pourcentage du groupe
+« Carbonate » dans les cartes d'abondance Zastrow & Glotch, en **moyenne sur 3 × 3 pixels** (≈ 108 m), ce qui tolère
+un décalage de recalage d'un pixel. Le seuil `CARBONATE_MIN_PCT` vaut **20 %** (paramètre de démonstration ; repères :
+médiane de la zone ≈ 14 %, 90e percentile ≈ 31 %). Si le point B sort de l'emprise CRISM ou passe sous le seuil, le
+verdict devient `bloque`. Le message à afficher reste « signature compatible avec des carbonates », jamais « carbone
+détecté » ni « preuve de vie ».
+
+Le contrôle a été validé à rebours : l'ancien point B (8 %) est bien refusé (test automatique).
 
 Le test « point dans la ROI » convertit le point B dans la projection CRISM (`lonlat_to_crism`), puis teste
 l'inclusion dans les 897 polygones avec shapely.
@@ -430,7 +454,7 @@ Le dossier workflow en liste six (le défi en demande au moins trois) :
 |---|---|---|---|---|
 | Optique | HiRISE 25 cm | ✅ réel | tuiles `ortho`, texture 3D | Jezero |
 | Topographique | DTM HiRISE 1 m | ✅ réel | `/route/stats`, tuiles `slope`, relief 3D | Jezero |
-| Spectrale | CRISM (Zastrow & Glotch) | 🟡 ROI réelle ; signature au point B en attente | `/gate` | Jezero |
+| Spectrale | CRISM (cartes d'abondance Zastrow & Glotch) | ✅ réel : 36,6 % de carbonate au point B | `/gate`, `/minerals/*`, couche minéraux 3D | Jezero |
 | Thermique | THEMIS IR de jour | ✅ réel (100 m, qualitatif) | tuiles `thermal` | Jezero |
 | Atmosphérique | MEDA (Perseverance) | ✅ réel, sols passés | `/weather` | **Jezero** |
 | Radiations | RAD (Curiosity) + DONKI | ✅ réel | `/radiation`, `/incidents` | **Gale** (RAD), Soleil (DONKI) |
@@ -495,7 +519,7 @@ Ces valeurs sont **identiques aux valeurs publiées** (Hassler et al., *Science*
 et 0,64 ± 0,12 mSv/jour), ce qui valide l'extraction.
 
 **Dose de la sortie** (`GET /radiation/eva`) = débit moyen × durée hors habitat. Pour le plan actuel
-(75 min : 30 aller + 15 observation + 31 retour) : **11 µGy absorbés, environ 34 µSv**, soit 0,006 % de la
+(69,6 min : 24,5 aller + 15 observation + 30,1 retour) : **10 µGy absorbés, environ 31 µSv**, soit 0,005 % de la
 limite de carrière NASA (600 mSv, NASA-STD-3001), donnée comme repère.
 
 ⚠️ **RAD mesure à Gale, pas à Jezero.** Le débit de surface dépend surtout de l'épaisseur d'atmosphère et du
@@ -519,8 +543,7 @@ est le retour immédiat.
 
 Décision : **NO-GO** si un critère est rouge, **GO** si tout est vert, sinon **GO sous réserve**.
 
-État actuel : **GO sous réserve**. Tout est vert sauf les données (Data Gate « incomplet », en attente de
-`data_models.zip`).
+État actuel : **GO**. Les cinq critères sont verts (le Data Gate est `valide` depuis le branchement de `data_models`).
 
 ---
 
@@ -535,6 +558,12 @@ Décision : **NO-GO** si un critère est rouge, **GO** si tout est vert, sinon *
 | `albedo.jpg` | Orthoimage HiRISE 4096 px, teintée aux couleurs de Mars | 6,1 Mo |
 | `normal.jpg` | Relief fin calculé sur le DTM 1 m | 2,0 Mo |
 | `slope.png` | Couche pentes (mêmes seuils que l'API) | 0,5 Mo |
+| `minerals.png` | **Couche minéraux** : vert-bleu = carbonates (≥ 15 %, opaque à 35 %), violet = argiles (≥ 35 % là où le carbonate est faible). Reprojetée de `CRISM_LAT_15_0` (pixels de 36 m) vers la grille HiRISE, en bilinéaire | 1,4 Mo |
+
+**Couche minéraux dans la vue** : bouton « Couche minéraux » (il n'apparaît que si `minerals.png` existe), avec
+sa légende. Raccourcis d'URL pour la démo : **`/3d#mineraux`** et `/3d#pentes` activent la couche dès l'ouverture.
+
+![Vue 3D avec la couche minéraux : la cible est dans la zone vert-bleu (carbonates)](docs/apercu_vue3d_mineraux.png)
 
 **Repère 3D** : origine au centre de la zone, x vers l'Est, z vers le Sud (le Nord est vers −z),
 y = altitude − (−2540 m). Ligne 0 de la grille = bord nord.
@@ -562,8 +591,8 @@ Sans `data.json` réel, la page garde ses anciennes valeurs.
 Three.js est chargé depuis jsDelivr : pour une démo **sans internet**, copier `three.module.js` et `examples/jsm`
 en local et changer l'`importmap`.
 
-**Point d'attention vu en 3D** : l'habitat provisoire est à 160 m du bord de la zone, donc la bordure du terrain
-se voit derrière lui. Le recentrer règle le problème.
+**Bordure de la zone** : avec la version 1 des points, l'habitat était à 160 m du bord et la bordure du terrain se
+voyait derrière lui. Avec la version 2, l'habitat est près du centre et le problème a disparu.
 
 ---
 
@@ -589,7 +618,7 @@ cd backend
 python -m pytest -q
 ```
 
-**28 tests, tous verts.**
+**32 tests, tous verts.**
 - **Calculs** (sans fichier NASA) : haversine, longitude raccourcie par la latitude, cohérence avec l'emprise du
   GeoTIFF, terrain plat, rampe de 10° exacte, trous du DTM, tracé hors DTM, formule d'autonomie (exemple du guide :
   120 − (35 + 15 + 40) = 30), statuts vert/orange/rouge, refus d'arrêt, valeurs négatives.
@@ -606,8 +635,8 @@ Les tests qui ont besoin du DTM ou des tuiles sont **ignorés automatiquement** 
 
 | # | Tâche | Bloquant ? | Responsable |
 |---|---|---|---|
-| 1 | Télécharger `data_models.zip` (6,8 Go, Zenodo 4699583), puis brancher la vérification de signature dans `/gate` et ajouter une couche minéraux (tuiles + route `/minerals`) | **Oui (P0)** | Données / backend |
-| 2 | Faire valider l'habitat et le point B par l'équipe (recentrer l'habitat, loin du bord). Puis relancer `export_3d.py` et vérifier `/gate` et `/route/stats` | **Oui** | Équipe |
+| 1 | Afficher dans l'interface le spectre du point B (`/minerals/spectrum`) et la composition (`/minerals/point`) | Recommandé (fort pour le jury) | Front / 3D |
+| 2 | Supprimer `data/data_models.zip` (6,8 Go, déjà extrait) : le disque est presque plein | Urgent | Toi |
 | 3 | Relancer `fetch_donki.py --refresh` avec une clé NASA pour compléter la classe d'éruption | Non | Données |
 | 4 | Three.js en local (`importmap`) pour une vue 3D 100 % hors ligne | Avant la démo | 3D |
 | 5 | Réexporter `API_ou_telechargement_EVA_Planner.pdf` (corrompu) | Non | Chef de projet |
@@ -615,11 +644,12 @@ Les tests qui ont besoin du DTM ou des tuiles sont **ignorés automatiquement** 
 | 7 | Bonus : couche géologie SIM 3464, retrait des ombres de la texture 3D, A*, globe Cesium en introduction | Non | Données / 3D |
 
 **Fait depuis la première version** : couche thermique THEMIS, météo MEDA, radiations RAD, briefing GO / NO-GO,
-vue 3D sur données réelles, seuils de pente unifiés.
+vue 3D sur données réelles, seuils de pente unifiés, `data_models` reçu, points A et B déplacés vers la zone riche
+en carbonate (version 2), **`data_models` branché** : Data Gate `valide`, routes `/minerals/*`, couche minéraux 3D,
+briefing **GO**.
 
 ### Points d'attention
 
-- Le tracé provisoire passe par des zones jaunes et orange (crêtes au sud-est). C'est visible sur la carte et
-  signalé dans `difficult_segments`. L'équipe peut en profiter pour la démo, ou déplacer les points.
-- `data/tiles/` pèse 97 Mo. Soit on le commit (démo hors ligne immédiate), soit chacun le régénère avec
-  `make_tiles.py`. Décision à prendre en équipe.
+- **L'équipe a choisi la 3D seule** : Leaflet n'est plus développé. Les tuiles restent comme repli, non commitées.
+- Même au point B, le modèle donne **53 % d'argiles pour 37 % de carbonate**. Dire « zone parmi les plus riches en
+  carbonate », pas « carbonate pur ».

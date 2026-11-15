@@ -9,3 +9,4 @@ pytest>=8.0
 httpx>=0.27
 pillow>=10.0
 scipy>=1.13
+netCDF4>=1.7

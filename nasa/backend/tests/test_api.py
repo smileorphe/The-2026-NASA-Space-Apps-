@@ -118,6 +118,41 @@ def test_dose_eva_proportionnelle(client):
     assert client.get("/radiation/eva?duration_min=-5").status_code == 422
 
 
+needs_minerals = pytest.mark.skipif(not config.MINERALS_NC.exists(), reason="data_models absent")
+
+
+@needs_minerals
+def test_composition_point_b(client):
+    p = client.get("/minerals/point").json()
+    g = p["groupes_pct"]
+    assert 95 < sum(v for v in g.values() if v is not None) < 105      # les groupes font ~100 %
+    assert g["Carbonate"] >= config.CARBONATE_MIN_PCT
+    assert p["pixel"]["distance_centre_m"] < p["pixel"]["taille_m"]
+
+
+@needs_minerals
+def test_ancien_point_b_pauvre_en_carbonate(client):
+    # Version 1 du point B : abandonnée car pauvre en carbonate (8 %) -> doit rester sous le seuil
+    p = client.get("/minerals/point?lon=77.38035&lat=18.54224").json()
+    assert p["groupes_pct_moyenne_3x3"]["Carbonate"] < config.CARBONATE_MIN_PCT
+
+
+@needs_minerals
+def test_spectre(client):
+    s = client.get("/minerals/spectrum").json()
+    assert len(s["longueur_onde"]) == len(s["mesure"]) == len(s["modele"]) > 100
+    assert s["longueur_onde"] == sorted(s["longueur_onde"])
+    assert client.get("/minerals/point?lon=77.0&lat=18.0").status_code == 422   # hors emprise CRISM
+
+
+@needs_minerals
+@needs_dtm
+def test_gate_valide_avec_minerals(client):
+    g = client.get("/gate").json()
+    assert g["checks"]["signature_carbonate_point_b"]["ok"] is True
+    assert g["verdict"] == "valide"
+
+
 @needs_dtm
 def test_briefing(client):
     b = client.get("/briefing").json()

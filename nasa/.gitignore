@@ -8,3 +8,6 @@ __pycache__/
 backend/data/tiles/
 # Cubes CRISM (1,6 Go) : dépassent la limite GitHub, à récupérer sur Zenodo 4699583
 data/data_input/
+# Cartes d'abondance CRISM (20 Go extraits + 6,8 Go zip) : Zenodo 4699583, data_models.zip
+data/data_models/
+data/data_models.zip

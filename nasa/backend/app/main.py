@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import autonomy, config, environment
+from . import autonomy, config, environment, minerals
 from .gate import run_gate
 from .route import Route
 from .terrain import Dtm, route_stats
@@ -183,6 +183,40 @@ def _plan(observation_min: float = 15.0) -> dict:
 def autonomy_plan(observation_min: float = Query(15.0, ge=0)):
     """Budget au départ, à partir des durées de marche calculées sur le DTM."""
     return _plan(observation_min)
+
+
+# --- Minéralogie CRISM (data_models) -----------------------------------------
+def _mm():
+    mm = minerals.maps()
+    if mm is None:
+        raise HTTPException(503, "Cartes d'abondance absentes : extraire data_models.zip dans nasa/data/")
+    return mm
+
+
+def _default_point(lon, lat):
+    if lon is None or lat is None:
+        return _route().point_b()
+    return lon, lat
+
+
+@app.get("/minerals/point")
+def minerals_point(lon: float | None = None, lat: float | None = None):
+    """Composition minérale (% par groupe et par minéral) à un point. Par défaut : le point B."""
+    lon, lat = _default_point(lon, lat)
+    try:
+        return _mm().composition(lon, lat)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+
+@app.get("/minerals/spectrum")
+def minerals_spectrum(lon: float | None = None, lat: float | None = None):
+    """Spectre mesuré et modélisé à un point (graphique « pourquoi c'est un carbonate »). Par défaut : B."""
+    lon, lat = _default_point(lon, lat)
+    try:
+        return _mm().spectrum(lon, lat)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
 
 
 # --- Météo (MEDA) et radiations (RAD) ----------------------------------------

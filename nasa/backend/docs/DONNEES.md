@@ -262,7 +262,49 @@ creux d'absorption, **vers 2,30 µm et 2,50 µm**.
 **Lecture prévue** : `spectral.open_image("x.hdr").load()` ou `numpy.fromfile` avec reshape
 `(244, 478, 285)` (ordre BSQ).
 
-### Traitement : **pas encore fait**
+### Cartes d'abondance déjà calculées : `data_models` (reçu le 15/11)
+
+| Propriété | Valeur |
+|---|---|
+| Fichiers | `data/data_models/*.nc` : 18 fichiers, 20 Go une fois extraits (`data_models.zip`, 6,8 Go) |
+| Format | **NetCDF4** (HDF5), géoréférencé : attributs `crs` (`CRISM_LAT_15_0`) et `transform` (pixels de 35,9 m) ; `lon` / `lat` par pixel |
+| Fichiers principaux | `040ff_2cuts_final_standard_tomurray.nc` (425 × 746 px, notre zone), `_roi1.nc` (même chose découpé sur la ROI, 2 934 pixels), `047a3_…`, `05c5e_…` |
+| Variantes | `added_kaolinite/`, `no_phyllosilicates/`, `no_siderite/`, `full_spectrum/`, `bounds/` : tests de sensibilité des auteurs |
+| `gnc` (8 × y × x) | **% par groupe** : Carbonate, Opal, Phyllosilicate, Pyroxene, Feldspar, Olivine, Oxide, Dust (somme ≈ 100) |
+| `mnc` (21 × y × x) | % par minéral : Calcite, Magnesite, Siderite, Montmorillonite, Nontronite… |
+| `meas`, `mod` (171 λ × y × x) | Spectre mesuré et spectre modélisé : de quoi tracer le graphique du point B |
+| `rms` | Erreur de l'ajustement |
+| `sr` (60 × y × x) | Indices spectraux CRISM standard (BD2300, MIN2295_2480, D2300…) |
+
+**Lecture** : `netCDF4.Dataset(...)` (paquet `netCDF4`), position d'un point par conversion lon/lat vers
+`CRISM_LAT_15_0`, puis pixel le plus proche des axes `x` / `y`.
+
+**Résultats sur la zone** : carbonate médian 13,8 % ; 90e percentile 31 % ; maximum 40 %. Les carbonates riches
+(30–37 %) sont dans la **moitié ouest de la ROI**. **Au point B : 36,6 % de carbonate, 53,5 % d'argiles.**
+
+### Traitement des cartes d'abondance (`app/minerals.py`, `scripts/export_3d.py`)
+
+1. **Ouverture paresseuse** du NetCDF avec `netCDF4` : seuls les pixels demandés sont lus (le fichier fait 650 Mo).
+   Un verrou évite les lectures concurrentes (HDF5 ne les supporte pas bien).
+2. **Point → pixel** : lon/lat converties en `CRISM_LAT_15_0` (rayon 3 394 839,8 m), puis pixel le plus proche des
+   axes `x` / `y` ; refus si hors emprise.
+3. **Composition** (`/minerals/point`) : `gnc` et `mnc` au pixel, plus la moyenne 3 × 3 de `gnc`, et `rms`.
+4. **Contrôle du Data Gate** : carbonate (moyenne 3 × 3) ≥ 20 % → signature compatible. Point B : 36,6 % (3 × 3 : 35,9 %).
+5. **Spectre** (`/minerals/spectrum`) : `meas` et `mod` au pixel, triés par longueur d'onde croissante
+   (1,04 → 2,49 µm, 171 bandes ; les segments droits du graphique sont les bandes retirées par les auteurs).
+6. **Couche 3D** (`minerals.png`) : `gnc` Carbonate et Phyllosilicate reprojetés avec `rasterio.warp.reproject`
+   (transform GDAL lu dans l'attribut `transform`, CRS dans l'attribut `crs`) vers la grille HiRISE de la zone
+   (1500 px, 2 m), bilinéaire. Couleurs : vert-bleu = carbonate (15 → 35 %), violet = argiles (35 → 70 %) là où le
+   carbonate est faible.
+
+**Vérifications** :
+- le spectre du point B montre un creux net à 2,3 µm, que n'a pas l'ancien point B (`docs/spectre_point_b.png`) ;
+- la couche 3D est vert-bleu au point B et violette à l'ancien B (contrôle des pixels) ;
+- l'ancien point B est refusé par le contrôle (test automatique).
+
+![Spectre du point B (cyan : mesure, orange : modèle) comparé à l'ancien point B (gris)](spectre_point_b.png)
+
+### Traitement direct des cubes `data_input` : **pas nécessaire** (les cartes d'abondance le remplacent)
 
 | Étape | Méthode | Statut |
 |---|---|---|
@@ -397,10 +439,16 @@ quota `DEMO_KEY` a été épuisé. Relancer avec une clé personnelle et `--refr
 | Format | **GeoJSON** `FeatureCollection`, coordonnées `[longitude, latitude]` en degrés Mars 2000 |
 | Objets obligatoires | `Point` rôle `habitat`, `Point` rôle `point_b`, `LineString` rôle `aller` ; facultatifs : `waypoint`, `retour` |
 
-**Placement** (avec le DTM et la ROI) :
-- **habitat** : zone la plus plate du quart sud-est (pente max < 4° sur 60 m) ;
-- **point B** : amas dense de la ROI à ≈ 1,2 km ;
-- **WP1** : déplacé par une recherche automatique, pour passer de 20,1° (interdit) à 14,4° de pente max.
+**Placement, version 2** (DTM + cartes d'abondance `data_models`) :
+- **point B** (77,34991°E / 18,55196°N) : amas à **36,6 % de carbonate** (moyenne 3 × 3 pixels ≥ 32 %), dans la ROI,
+  pente locale 5° ;
+- **habitat** (77,36708°E / 18,54888°N) : zone de 60 m la plus plate (pente max 1,6°), à 1–1,4 km de B, à plus de
+  400 m des bords ;
+- **tracés** : chemin de moindre coût sur une grille de pentes de 10 m (coût = longueur × (1 + (pente/8)²),
+  pentes > 15° interdites), simplifié à 12 m ; retour pénalisé près de l'aller pour obtenir un chemin différent.
+  Résultat : aller 1 020 m (pente max 7,2°), retour 1 256 m (8,4°).
+
+Version 1 abandonnée : la cible n'avait que 8 % de carbonate (53 % d'argiles).
 
 **Validation** au chargement (`app/route.py`) : type, rôles obligatoires, coordonnées dans les bornes.
 

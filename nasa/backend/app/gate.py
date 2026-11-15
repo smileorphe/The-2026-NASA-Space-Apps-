@@ -3,13 +3,15 @@
 Vérifie automatiquement ce qui peut l'être :
   1. le DTM couvre tout le tracé ;
   2. le point B est dans la ROI carbonates (shapefile Zastrow & Glotch) ;
-  3. la signature carbonate au point B -> EN ATTENTE de data_models.zip (cartes d'abondance).
+  3. la signature carbonate au point B : % de carbonate (moyenne 3x3) dans les cartes d'abondance
+     data_models ≥ config.CARBONATE_MIN_PCT.
 """
 from __future__ import annotations
 
 from pathlib import Path
 
 from .geo import lonlat_to_crism
+from .minerals import carbonate_check
 
 
 def point_in_roi(lon: float, lat: float, roi_path: Path) -> dict:
@@ -40,11 +42,7 @@ def run_gate(route, dtm, roi_path: Path) -> dict:
             "detail": "DTM HiRISE 1 m (Mars 2020 TRN)" if dtm else "DTM non chargé",
         },
         "point_b_dans_roi": point_in_roi(b_lon, b_lat, roi_path),
-        "signature_carbonate_point_b": {
-            "ok": None,
-            "detail": "En attente des cartes d'abondance (data_models.zip, Zenodo 4699583). "
-                      "Ne pas annoncer de détection minérale avant cette vérification.",
-        },
+        "signature_carbonate_point_b": carbonate_check(b_lon, b_lat),
     }
     oks = [c["ok"] for c in checks.values()]
     if any(o is False for o in oks):
