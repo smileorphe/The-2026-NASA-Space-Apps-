@@ -1,22 +1,114 @@
 {
-  "projection": "[à compléter au Data Gate]",
-  "extent": [[-250, -250], [1900, 1150]],
+  "note": "Coordonnées en longitude/latitude Mars 2000 (EPSG:104905). Emprises DTM et CRISM : MOCK à remplacer au Scope & Data Gate.",
+  "projection": "Mars 2000 géographique (EPSG:104905) · calculs en repère métrique local centré sur A",
+  "extent": [[77.446354, 18.4404823], [77.48459, 18.4641012]],
   "layers": [
     {
-      "id": "topo", "name": "Topographie · DTM", "source": "DTM · [HiRISE ou MOLA]", "date": "[date]", "resolution": "[résolution]",
-      "projection": "[projection]", "kind": "obs", "tiles": null, "footprint": [[-200, -200], [1850, -200], [1850, 1100], [-200, 1100]]
+      "id": "basemap",
+      "name": "Fond global · MOLA relief ombré",
+      "source": "NASA Mars Trek WMTS · MGS MOLA colorized shaded relief (Mars_MGS_MOLA_ClrShade_merge_global_463m)",
+      "date": "[date à compléter]",
+      "resolution": "463 m (identifiant de la couche)",
+      "projection": "EPSG:104905 · équirectangulaire",
+      "kind": "der",
+      "footprint": null,
+      "wmts": {
+        "_source": "Valeurs relevées dans public/data/wmts/mola_clrshade_global_WMTSCapabilities.xml (GetCapabilities du 2026-11-15). Même anomalie que HiRISE : deux niveaux « 0 » et « 1 » en double sont ignorés ; pyramide régulière 0–7.",
+        "url": "https://trek.nasa.gov/tiles/Mars/EQ/Mars_MGS_MOLA_ClrShade_merge_global_463m/1.0.0//{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.jpg",
+        "layer": "Mars_MGS_MOLA_ClrShade_merge_global_463m",
+        "matrixSet": "default028mm",
+        "format": "image/jpeg",
+        "style": "default",
+        "crs": "urn:ogc:def:crs:EPSG::104905",
+        "topLeftCorner": [-180.0, 90.0],
+        "tileSize": 256,
+        "matrixWidth0": 2,
+        "maxMatrix": 7,
+        "boundingBox": [-180.0, -89.9991635, 179.9983271, 90.0],
+        "localTiles": "/tiles/mola/{TileMatrix}/{TileRow}/{TileCol}.jpg"
+      }
     },
     {
-      "id": "crism", "name": "Minéralogie · CRISM", "source": "CRISM · [identifiant produit]", "date": "[date]", "resolution": "[résolution]",
-      "projection": "[projection]", "kind": "der", "tiles": null, "footprint": [[1150, 600], [1800, 560], [1850, 1080], [1220, 1110]]
+      "id": "ctx",
+      "name": "Fond régional · CTX",
+      "kind": "obs",
+      "source": "NASA Mars Trek WMTS · MRO CTX, Mosaic Global Uncontrolled (Caltech), beta01 (CTX_beta01_uncontrolled_5m_Caltech)",
+      "date": "mosaïque cataloguée le 2020-06-25",
+      "resolution": "nominale 5 m/px (identifiant) · affichée jusqu’au niveau 10 ≈ 20 m/px",
+      "projection": "EPSG:104905 · équirectangulaire",
+      "footprint": null,
+      "wmts": {
+        "_source": "Valeurs relevées dans public/data/wmts/ctx_global_beta01_WMTSCapabilities.xml (GetCapabilities du 2026-11-15). Tuiles de 512 px servies par astro.arcgis.com (gabarit sans {Style}). Doublons « 0 » et « 1 » ignorés ; pyramide régulière 0–11. Les tuiles du niveau 11 autour de Jezero sont tronquées côté serveur (PNG incomplet, reproductible) alors qu’elles sont intactes ailleurs : la couche est plafonnée au niveau 10.",
+        "url": "https://astro.arcgis.com/arcgis/rest/services/OnMars/CTX/MapServer/tile/{TileMatrix}/{TileRow}/{TileCol}",
+        "layer": "CTX_beta01_uncontrolled_5m_Caltech",
+        "matrixSet": "default028mm",
+        "format": "image/png",
+        "style": "default",
+        "crs": "urn:ogc:def:crs:EPSG::104905",
+        "topLeftCorner": [-180.0, 90.0],
+        "tileSize": 512,
+        "matrixWidth0": 2,
+        "maxMatrix": 11,
+        "maxUsableMatrix": 10,
+        "boundingBox": [-180.0, -90.0, 180.0, 90.0],
+        "localTiles": "/tiles/ctx/{TileMatrix}/{TileRow}/{TileCol}.png"
+      }
     },
     {
-      "id": "imagery", "name": "Imagerie", "source": "HiRISE / CTX · [identifiant]", "date": "[date]", "resolution": "[résolution]",
-      "projection": "[projection]", "kind": "obs", "tiles": null, "footprint": null
+      "id": "imagery",
+      "name": "Imagerie · HiRISE",
+      "source": "NASA Mars Trek WMTS · MRO HiRISE, Jezero Mosaic, Controlled (JEZ_hirise_soc_006_orthoMosaic_25cm)",
+      "date": "[date d’acquisition à compléter]",
+      "resolution": "nominale 25 cm/px",
+      "projection": "EPSG:104905 · équirectangulaire",
+      "kind": "obs",
+      "footprint": null,
+      "wmts": {
+        "_source": "Valeurs relevées dans public/data/wmts/hirise_jezero_WMTSCapabilities.xml (GetCapabilities du 2026-11-15). Le document liste en fin de TileMatrixSet deux entrées « 0 » et « 1 » en double avec d’autres échelles : elles sont ignorées, seule la pyramide régulière 0–17 est utilisée.",
+        "url": "https://trek.nasa.gov/tiles/Mars/EQ/JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first_dd/1.0.0//{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.png",
+        "layer": "JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first_dd",
+        "matrixSet": "default028mm",
+        "format": "image/png",
+        "style": "default",
+        "crs": "urn:ogc:def:crs:EPSG::104905",
+        "topLeftCorner": [-180.0, 90.0],
+        "tileSize": 256,
+        "matrixWidth0": 2,
+        "maxMatrix": 17,
+        "boundingBox": [77.2229331, 18.3067994, 77.583964, 18.669315],
+        "localTiles": "/tiles/hirise/{TileMatrix}/{TileRow}/{TileCol}.png"
+      },
+      "effectiveResolution": "≈ 1–2 m/px"
     },
     {
-      "id": "route", "name": "Tracé", "source": "route_aller.geojson · équipe", "date": "v1", "resolution": "—",
-      "projection": "[projection]", "kind": "der", "tiles": null, "footprint": null
+      "id": "topo",
+      "name": "Topographie · DTM",
+      "source": "DTM · [HiRISE ou MOLA]",
+      "date": "[date]",
+      "resolution": "[résolution]",
+      "projection": "[projection]",
+      "kind": "obs",
+      "footprint": [[77.4472432, 18.4413259], [77.4837007, 18.4413259], [77.4837007, 18.4632577], [77.4472432, 18.4632577]]
+    },
+    {
+      "id": "crism",
+      "name": "Minéralogie · CRISM",
+      "source": "CRISM · [identifiant produit]",
+      "date": "[date]",
+      "resolution": "[résolution]",
+      "projection": "[projection]",
+      "kind": "der",
+      "footprint": [[77.4712518, 18.4548224], [77.4828115, 18.4541475], [77.4837007, 18.4629203], [77.4724967, 18.4634264]]
+    },
+    {
+      "id": "route",
+      "name": "Tracé",
+      "source": "route_aller.geojson · équipe",
+      "date": "v1",
+      "resolution": "—",
+      "projection": "EPSG:104905",
+      "kind": "der",
+      "footprint": null
     }
   ]
 }

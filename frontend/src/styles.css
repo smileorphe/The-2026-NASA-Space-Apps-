@@ -116,17 +116,16 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 .chart { width: 100%; height: auto; display: block; }
 .placeholder { border: 2px dashed var(--border); border-radius: var(--r-inner); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; min-height: 110px; text-align: center; padding: 8px; }
 
-/* ---------- Carte Leaflet ---------- */
+/* ---------- Carte (OpenLayers) ---------- */
 .map { position: relative; border-radius: 18px; overflow: hidden; background: #211e1c; }
-.map .leaflet-container { width: 100%; height: 100%; background: #211e1c; font-family: var(--ui); }
-.map-overlay { position: absolute; z-index: 500; right: 12px; bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
-.map-overlay .inner { background: rgba(16, 13, 11, 0.85); padding: 8px 12px; }
-.wp { display: flex; align-items: center; justify-content: center; width: 26px !important; height: 26px !important; margin: -13px 0 0 -13px !important; border-radius: 50%; background: var(--main); border: 3px solid var(--nav); color: var(--text); font-size: 10px; font-weight: 800; }
-.wp-a { border-radius: 10px; background: var(--text); color: var(--main); border: none; font-size: 14px; }
-.wp-b { border-radius: 4px; background: var(--accent); color: var(--ink); border: none; font-size: 14px; transform-origin: center; }
-.wp-done { border-color: var(--green); }
-.map .leaflet-tooltip { background: rgba(16, 13, 11, 0.9); color: var(--text); border: none; border-radius: 8px; box-shadow: none; font-weight: 600; }
-.map .leaflet-tooltip::before { display: none; }
+.map-target { width: 100%; height: 100%; }
+.map-overlay { position: absolute; z-index: 2; right: 44px; bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.map .ol-control button { background: rgba(16, 13, 11, 0.85); color: var(--text); border-radius: 8px; }
+.map .ol-zoom { top: 12px; left: 12px; }
+.map .ol-scale-line { background: rgba(16, 13, 11, 0.85); left: 12px; bottom: 12px; border-radius: 8px; }
+.map .ol-scale-line-inner { border-color: var(--text); color: var(--text); font-family: var(--mono); }
+.map .ol-attribution { font-size: 11px; }
+.map-badge { position: absolute; z-index: 2; left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(16, 13, 11, 0.9); border: 1px solid var(--amber); color: var(--amber); font-size: 12px; font-weight: 700; }
 
 /* ---------- Tablette (1024×768, cibles ≥ 56 px) ---------- */
 .tablet { width: 1024px; height: 768px; max-width: 100vw; margin: 0 auto; background: var(--side); padding: 20px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }

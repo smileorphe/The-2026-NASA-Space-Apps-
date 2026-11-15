@@ -1,0 +1,88 @@
+{
+  "layer": "CTX_beta01_uncontrolled_5m_Caltech",
+  "source": "https://astro.arcgis.com/arcgis/rest/services/OnMars/CTX/MapServer/tile/{TileMatrix}/{TileRow}/{TileCol}",
+  "generatedAt": "2026-11-15T00:37:08.734Z",
+  "zone": "carte",
+  "extent": [
+    77.2229331,
+    18.3067994,
+    77.583964,
+    18.669315
+  ],
+  "marginM": null,
+  "levels": [
+    0,
+    10
+  ],
+  "stats": {
+    "0": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "1": {
+      "image": 0,
+      "vide": 0,
+      "invalide": 1,
+      "dejaPresente": 0
+    },
+    "2": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "3": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "4": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "5": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "6": {
+      "image": 1,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "7": {
+      "image": 2,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "8": {
+      "image": 2,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "9": {
+      "image": 4,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    },
+    "10": {
+      "image": 9,
+      "vide": 0,
+      "invalide": 0,
+      "dejaPresente": 0
+    }
+  },
+  "failures": [
+    "1/0/2 : HTTP 500"
+  ]
+}

@@ -130,7 +130,7 @@ export function Preparation() {
           <ElevationProfile profile={a.profile} />
         </Card>
 
-        <Card title="Provenance des données" className="s6" extra={<span className="small muted">projection commune : {data.projection}</span>}>
+        <Card title="Provenance des données" className="s6" extra={<span className="small muted">{data.projectionLabel}</span>}>
           <ProvenanceTable />
         </Card>
       </div>

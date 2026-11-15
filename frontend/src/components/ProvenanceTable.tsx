@@ -14,7 +14,15 @@ export function ProvenanceTable() {
           <tr key={l.id}>
             <td>{l.name}</td>
             <td>{l.source}</td>
-            <td className="mono small">{l.resolution} · {l.date}</td>
+            <td className="small">
+              <span className="mono">{l.effectiveResolution ? `résolution ${l.resolution}` : l.resolution} · {l.date}</span>
+              {l.effectiveResolution && (
+                <span className="row" style={{ marginTop: 4, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+                  <ProvenanceTag kind="obs" />
+                  <span>résolution effective mesurée {l.effectiveResolution}</span>
+                </span>
+              )}
+            </td>
             <td><ProvenanceTag kind={l.kind} /></td>
           </tr>
         ))}

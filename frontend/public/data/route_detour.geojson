@@ -1,15 +1,38 @@
 {
   "type": "FeatureCollection",
   "name": "route_detour",
-  "crs_note": "MOCK — même repère que route_aller. Le premier point est sur le tracé aller (avant l'obstacle), le dernier est B.",
   "features": [
     {
       "type": "Feature",
-      "properties": { "id": "route_detour", "obstacle": [1380, 785] },
+      "properties": {
+        "id": "route_detour",
+        "obstacle": [
+          77.4753422,
+          18.4579434
+        ]
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[1215, 662], [1400, 660], [1590, 820], [1642, 973]]
+        "coordinates": [
+          [
+            77.4724078,
+            18.4558683
+          ],
+          [
+            77.4756979,
+            18.4558346
+          ],
+          [
+            77.4790769,
+            18.4585339
+          ],
+          [
+            77.4800016,
+            18.4611151
+          ]
+        ]
       }
     }
-  ]
+  ],
+  "note": "MOCK — longitude/latitude Mars 2000 (EPSG:104905, longitudes est). Point A placé provisoirement au site d’atterrissage de Perseverance ; tracé à remplacer par celui validé au Scope & Data Gate."
 }
