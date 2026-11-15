@@ -28,7 +28,7 @@ export function ProvenanceTable() {
         ))}
         <tr>
           <td>Analyse du tracé</td>
-          <td>{data.analysisSource === 'api' ? 'Backend FastAPI · DTM' : 'Mock local (backend indisponible)'}</td>
+          <td>{data.analysisSource === 'api' ? 'Backend FastAPI · DTM' : 'Calcul local (pipeline/route_analysis.py · DTM 5 m)'}</td>
           <td className="mono small">—</td>
           <td><ProvenanceTag kind="der" /></td>
         </tr>

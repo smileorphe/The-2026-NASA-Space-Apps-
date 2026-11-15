@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildMissionData, type RawFiles } from '../data';
-import analysis from '../mocks/routeAnalysis.json';
-import { type Action, type MissionState, deriveView, initialState, optionMargin, reduce } from './mission';
+import { isAllowed } from './autonomy';
+import { type Action, type MissionState, defaultParams, deriveView, initialState, optionMargin, plannedTimeAt, reduce } from './mission';
 
 const read = (f: string) => JSON.parse(readFileSync(new URL(`../../public/data/${f}`, import.meta.url), 'utf8'));
 const data = buildMissionData({
@@ -10,9 +10,11 @@ const data = buildMissionData({
   detour: read('route_detour.geojson'),
   scenarios: read('scenarios.json'),
   layersFile: read('layers.json'),
-  analysis: analysis as RawFiles['analysis'],
-  source: 'mock',
+  analysis: read('route_analysis.json') as RawFiles['analysis'],
+  source: 'pipeline',
 });
+const nominal = data.analysis.nominal;
+const start = () => initialState(defaultParams(data), data);
 
 const run = (s: MissionState, ...actions: Action[]) => actions.reduce((acc, a) => reduce(acc, a, data), s);
 /** Avance l'horloge par pas de 0,25 min, comme l'habitat le ferait à ×60. */
@@ -20,40 +22,43 @@ const advance = (s: MissionState, minutes: number) => {
   for (let i = 0; i < minutes * 4; i++) s = reduce(s, { type: 'TICK', dt: 0.25 }, data);
   return s;
 };
+const toB = () => advance(run(start(), { type: 'LAUNCH' }), nominal.aller_min + 1);
 
 describe('simulation de la sortie', () => {
-  it('lancement : marge 30, horloge à 0, départ journalisé', () => {
-    const s = run(initialState(), { type: 'LAUNCH' });
+  it('lancement : marge nominale, horloge à 0, départ journalisé', () => {
+    const s = run(start(), { type: 'LAUNCH' });
     expect(s.phase).toBe('eva');
-    expect(deriveView(s, data).margin).toBe(30);
+    expect(deriveView(s, data).margin).toBe(Math.round(nominal.margin_min));
     expect(s.log[0].text).toContain('Départ');
   });
 
   it('départ bloqué si la marge passe sous la réserve', () => {
-    const s = run(initialState({ autonomy: 100, speedKmh: 3.3, observation: 15, reserve: 20 }), { type: 'LAUNCH' });
+    const s = run(initialState({ ...defaultParams(data), autonomy: 100 }, data), { type: 'LAUNCH' });
     expect(s.phase).toBe('prep');
   });
 
-  it('la marge reste stable en suivant le plan, les waypoints sont journalisés', () => {
-    const s = advance(run(initialState(), { type: 'LAUNCH' }), 28);
-    expect(deriveView(s, data).margin).toBe(30);
-    expect(Object.keys(s.reached)).toEqual(expect.arrayContaining(['A', 'W1', 'W2']));
-    expect(s.log.some((l) => l.text.startsWith('W1 atteint'))).toBe(true);
+  it('les waypoints sont atteints à l’heure prévue par le coût du terrain', () => {
+    const s = advance(run(start(), { type: 'LAUNCH' }), plannedTimeAt(start(), data, data.waypoints[3]) + 0.5);
+    for (const w of data.waypoints.slice(1, 4)) {
+      expect(s.reached[w.id]).toBeDefined();
+      expect(Math.abs(s.reached[w.id]! - plannedTimeAt(s, data, w))).toBeLessThanOrEqual(0.5); // un pas d'horloge
+    }
+    expect(deriveView(s, data).margin).toBe(Math.round(nominal.margin_min));
   });
 
-  it('arrivée au point B vers T+35, horloge en temps réel', () => {
-    const s = advance(run(initialState(), { type: 'LAUNCH' }), 36);
-    expect(s.reached.B).toBeCloseTo(35, 5);
+  it('arrivée au point B à la durée aller du plan, horloge en temps réel', () => {
+    const s = toB();
+    expect(s.reached.B).toBeCloseTo(nominal.aller_min, 0);
     expect(s.leg?.kind).toBe('site');
     expect(s.clock.speed).toBe(1);
   });
 
-  it('tempête à T+28 : « poursuivre » refusé (−2), « retour immédiat » accepté (55)', () => {
-    let s = advance(run(initialState(), { type: 'LAUNCH' }), 28);
+  it('tempête à mi-parcours : « poursuivre » refusé, « retour immédiat » accepté', () => {
+    let s = advance(run(start(), { type: 'LAUNCH' }), nominal.aller_min / 2);
     s = run(s, { type: 'TRIGGER_INCIDENT', id: 'storm' });
     const [go, back] = data.scenarios.storm.options;
-    expect(optionMargin(s, go)).toBe(-2);
-    expect(optionMargin(s, back)).toBe(55);
+    expect(isAllowed(optionMargin(s, data, go), s.params.reserve)).toBe(false);
+    expect(isAllowed(optionMargin(s, data, back), s.params.reserve)).toBe(true);
     expect(run(s, { type: 'CHOOSE_OPTION', optionId: 'go' })).toBe(s);
     s = run(s, { type: 'CHOOSE_OPTION', optionId: 'back' });
     expect(s.leg?.kind).toBe('back');
@@ -61,23 +66,25 @@ describe('simulation de la sortie', () => {
   });
 
   it('obstacle : le détour mène à B', () => {
-    let s = advance(run(initialState(), { type: 'LAUNCH' }), 25);
+    let s = advance(run(start(), { type: 'LAUNCH' }), nominal.aller_min * 0.6);
     s = run(s, { type: 'TRIGGER_INCIDENT', id: 'obstacle' }, { type: 'CHOOSE_OPTION', optionId: 'detour' });
-    s = advance(s, 16);
+    expect(s.incident?.choice).toBe('detour');
+    s = advance(s, s.leg!.duration + 1);
     expect(s.leg?.kind).toBe('site');
     expect(s.reached.B).toBeDefined();
   });
 
-  it('prolonger +15 min au point B : refusé ; +10 accepté', () => {
-    const s = advance(run(initialState(), { type: 'LAUNCH' }), 36);
+  it('au point B : +10 min d’observation accepté, +15 refusé', () => {
+    const s = toB();
     expect(run(s, { type: 'EXTEND_OBSERVATION', minutes: 15, source: 'TABLETTE' })).toBe(s);
     expect(run(s, { type: 'EXTEND_OBSERVATION', minutes: 10, source: 'TABLETTE' }).observationExtra).toBe(10);
   });
 
-  it('boucle complète : retour à A, mission terminée', () => {
-    let s = advance(run(initialState(), { type: 'LAUNCH' }), 36);
-    s = run(s, { type: 'RETURN_NOW', source: 'TABLETTE' });
-    s = advance(s, 45);
+  it('retour depuis B par l’itinéraire de moindre coût, mission terminée avec la réserve', () => {
+    let s = run(toB(), { type: 'RETURN_NOW', source: 'TABLETTE' });
+    expect(s.leg?.path).toEqual(data.returnPath);
+    expect(s.leg?.duration).toBeCloseTo(nominal.retour_min, 0);
+    s = advance(s, nominal.retour_min + 1);
     expect(s.phase).toBe('done');
     expect(deriveView(s, data).remaining).toBeGreaterThanOrEqual(s.params.reserve);
   });

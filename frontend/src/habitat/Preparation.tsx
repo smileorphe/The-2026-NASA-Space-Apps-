@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { BudgetBar, ElevationProfile } from '../components/charts';
 import { Icon } from '../components/Icon';
-import { MissionMap, SlopeLegend } from '../components/MissionMap';
-import { CarbonateText, SiteImages } from '../components/PointB';
+import { CrismLegend, MissionMap, SlopeLegend } from '../components/MissionMap';
+import { PointBFacts, SiteImages } from '../components/PointB';
 import { ProvenanceTable } from '../components/ProvenanceTable';
 import { Card, Notice, type NoticeMsg, Stat, StatusPill, STATUS } from '../components/ui';
 import { isAllowed, LIMITS, plannedMargin, type SimParams, SPEEDS } from '../domain/autonomy';
-import { fmtDistance, fmtT } from '../format';
+import { fmtDeg, fmtDistance, fmtT } from '../format';
+import { planCosts } from '../domain/mission';
+import { slopeClass } from '../domain/slope';
+import { cssColor } from '../components/ui';
 import { dispatch, useMission } from '../store';
 import { Header } from './HabitatLayout';
 
@@ -23,7 +26,7 @@ export function Preparation() {
 
   const update = (patch: Partial<SimParams>) => {
     const next = { ...p, ...patch };
-    const m = plannedMargin(next);
+    const m = plannedMargin(next, planCosts(data));
     if (next.observation > p.observation && !isAllowed(m, next.reserve)) {
       setRefusal({ color: STATUS.red.color, title: 'Observation +5 min refusée.', text: `La marge passerait à ${m} min, sous la réserve de ${p.reserve} min. Le plan reste inchangé.` });
       return;
@@ -73,18 +76,19 @@ export function Preparation() {
             <span>Tracé : <span className="mono">route_aller.geojson</span></span>·<span>Retour : tracé inversé</span>
           </div>
           <SlopeLegend />
+          <CrismLegend />
         </Card>
 
         <Card title="Caractéristiques du tracé" extra={<span className="small muted">calculées sur le DTM</span>} className="s5">
           <div className="stats">
             <Stat label="Distance aller" tag="der" value={fmtDistance(a.distance_m)} />
-            <Stat label="Dénivelé" tag="der" value={`+${a.elevation_gain_m} / −${a.elevation_loss_m} m`} />
-            <Stat label="Pente max" tag="der" value={`${a.max_slope_deg}°`} />
+            <Stat label="Dénivelé" tag="der" value={`+${Math.round(a.elevation_gain_m)} / −${Math.round(a.elevation_loss_m)} m`} />
+            <Stat label="Pente max" tag="der" value={fmtDeg(a.max_slope_deg)} color={slopeClass(a.max_slope_deg).color} />
             <Stat label="Points de passage" tag="obs" value={data.waypoints.length - 2} />
             <Stat label="Durée aller" tag="sim" value={`${Math.round(view.budget.allerRestant)} min`} />
             <Stat label="Retour estimé" tag="sim" value={`${Math.round(view.budget.retour)} min`} />
           </div>
-          <Notice msg={{ color: 'var(--amber)', title: `Segment le plus raide : ${hardest.from} → ${hardest.to}.`, text: `Pente ${hardest.slope_deg}° sur ${hardest.length_m} m.` }} />
+          <Notice msg={{ color: slopeClass(hardest.slope_deg).color, title: `Segment le plus raide : ${hardest.from} → ${hardest.to}.`, text: `Pente maximale ${fmtDeg(hardest.slope_deg)} sur ${Math.round(hardest.length_m)} m (classe ${slopeClass(hardest.slope_deg).label}).` }} />
         </Card>
 
         <Card title="Paramètres de simulation" tag="sim" className="s4">
@@ -121,16 +125,20 @@ export function Preparation() {
           <Notice msg={refusal ?? planMsg} />
         </Card>
 
-        <Card title="Point B · affleurement ciblé" tag="der" className="s4">
+        <Card title={data.waypoints.find((w) => w.id === 'B')?.crismClass?.code === 'MC' ? 'Point B · carbonates marginaux' : 'Point B'} tag="der" className="s4">
           <SiteImages />
-          <CarbonateText />
+          <PointBFacts />
         </Card>
 
         <Card title="Profil d’élévation" tag="der" className="s6">
           <ElevationProfile profile={a.profile} />
         </Card>
 
-        <Card title="Provenance des données" className="s6" extra={<span className="small muted">{data.projectionLabel}</span>}>
+        <Card title="Comparaison des itinéraires" tag="der" className="s6" extra={<span className="small muted">calculés sur le DTM 5 m</span>}>
+          <RouteComparison />
+        </Card>
+
+        <Card title="Provenance des données" className="s12" extra={<span className="small muted">{data.projectionLabel}</span>}>
           <ProvenanceTable />
         </Card>
       </div>
@@ -151,3 +159,45 @@ function Stepper({ label, hint, value, onDec, onInc, disabled }: { label: string
     </div>
   );
 }
+
+/** Tracé de mission et itinéraires calculés (pipeline/paths.py), évalués avec la même carte de coût. */
+function RouteComparison() {
+  const { data } = useMission();
+  const { routes, returnZone } = data.overlays;
+  if (!routes) return <p className="small muted">Itinéraires calculés indisponibles (routes_computed.geojson absent) : seul le tracé de mission est utilisé.</p>;
+  const rows = [routes.mission, ...routes.features.map((f) => f.properties)];
+  const zone = returnZone?.features[0]?.properties;
+  const zp = returnZone?.parameters;
+  return (
+    <>
+      <table className="table">
+        <thead>
+          <tr><th>ITINÉRAIRE</th><th>DISTANCE</th><th>DÉNIVELÉ</th><th>PENTE MAX</th><th>SABLE</th><th>COÛT</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id}>
+              <td><strong>{r.label}</strong></td>
+              <td className="mono">{fmtDistance(r.distance_m)}</td>
+              <td className="mono">+{Math.round(r.elevation_gain_m)} / −{Math.round(r.elevation_loss_m)} m</td>
+              <td className="mono"><span className="dot" style={{ ...cssColor(slopeClass(r.max_slope_deg).color), display: 'inline-block', marginRight: 6 }} />{fmtDeg(r.max_slope_deg)}</td>
+              <td className="mono">{Math.round(r.sand_m)} m</td>
+              <td className="mono">{Math.round(r.cost)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="small muted">
+        Coût = (1 + {routes.parameters.alpha_per_deg} × pente°) × {routes.parameters.sand_factor} dans le sable ; pentes &gt; {routes.parameters.slope_max_deg}° interdites ;
+        coût 1 = 1 m de terrain plat. Le tracé de mission reste celui de la démonstration ; couches « Itinéraires calculés » et « Zone de retour » sur la carte.
+      </p>
+      {zone && zp && (
+        <Notice msg={zone.contains_B
+          ? { color: STATUS.green.color, title: 'B dans la zone de retour.', text: `Retour depuis B ${fmtMinutes(zone.return_min_from_B)} ≤ seuil ${fmtMinutes(zp.threshold_min)} (autonomie ${zp.autonomy_min} − réserve ${zp.reserve_min} − aller ${fmtMinutes(zp.aller_min)} − observation ${zp.observation_min}), aux paramètres par défaut.` }
+          : { color: STATUS.amber.color, title: 'B hors de la zone de retour.', text: `Retour depuis B ${fmtMinutes(zone.return_min_from_B)} > seuil ${fmtMinutes(zp.threshold_min)} : la marge nominale est sous la réserve.` }} />
+      )}
+    </>
+  );
+}
+
+const fmtMinutes = (m: number) => `${m.toFixed(1).replace('.', ',')} min`;

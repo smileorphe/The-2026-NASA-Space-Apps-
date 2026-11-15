@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Icon, type IconName } from '../components/Icon';
 import { MissionLog } from '../components/MissionLog';
-import { ProvenanceTag } from '../components/ProvenanceTag';
+import { PointBFacts } from '../components/PointB';
 import { cssColor, Notice, type NoticeMsg, STATUS } from '../components/ui';
 import { isAllowed } from '../domain/autonomy';
 import { canExtend, extensionMargin, type ObjectiveKey } from '../domain/mission';
@@ -40,7 +40,7 @@ export function Tablet() {
   const act = (a: (typeof ACTIONS)[number]) => dispatch({ type: 'LOG', source: 'TABLETTE', text: where ? `${a.text} ${where}` : a.text, objective: a.objective });
 
   const extend = () => {
-    const m = extensionMargin(s, EXTEND_MIN);
+    const m = extensionMargin(s, data, EXTEND_MIN);
     if (!isAllowed(m, s.params.reserve)) {
       setRefusal({ color: STATUS.red.color, title: 'Refusé.', text: `La marge passerait à ${m} min, sous la réserve de ${s.params.reserve} min.` });
       return;
@@ -109,8 +109,7 @@ export function Tablet() {
         <section className="stack" style={{ width: 360, gap: 12, minHeight: 0 }}>
           <div className="inner stack" style={{ gap: 8 }}>
             <span className="kicker">Fiche de la zone</span>
-            <div className="row" style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }}><ProvenanceTag kind="der" /><span className="small">Signature compatible avec des carbonates (CRISM).</span></div>
-            <div className="row" style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }}><ProvenanceTag kind="int" /><span className="small">Indice d’anciennes interactions avec l’eau. Pas une preuve de vie.</span></div>
+            <PointBFacts compact />
           </div>
           <div className="inner stack grow" style={{ gap: 4, minHeight: 0, overflow: 'hidden' }}>
             <span className="kicker">Journal · partagé avec l’habitat</span>

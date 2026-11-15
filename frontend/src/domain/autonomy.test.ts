@@ -1,45 +1,87 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PARAMS, isAllowed, latestLeaveB, margin, plannedDurations, plannedMargin, statusOf } from './autonomy';
+import type { RouteAnalysis, ReturnZone } from '../data';
+import {
+  isAllowed,
+  latestLeaveB,
+  margin,
+  minutesFor,
+  plannedDurations,
+  plannedMargin,
+  returnZoneThreshold,
+  type SimParams,
+  statusOf,
+} from './autonomy';
 
-const R = DEFAULT_PARAMS.reserve;
+const read = <T,>(f: string): T => JSON.parse(readFileSync(new URL(`../../public/data/${f}`, import.meta.url), 'utf8'));
+const analysis = read<RouteAnalysis>('route_analysis.json');
+const zone = read<ReturnZone>('return_zone.geojson');
+const costs = { allerCostM: analysis.aller.cost_m, retourCostM: analysis.return.cost_m };
+const d = analysis.defaults;
+const DEFAULTS: SimParams = { autonomy: d.autonomy_min, speedKmh: d.speed_kmh, observation: d.observation_min, reserve: d.reserve_min };
 
-describe('autonomie simulée (FRONTEND_SPEC §4)', () => {
-  it('valeurs par défaut : marge 30 min, statut vert', () => {
-    expect(plannedDurations(3.3)).toEqual({ aller: 35, retour: 40 });
-    expect(plannedMargin(DEFAULT_PARAMS)).toBe(30);
-    expect(statusOf(30, R)).toBe('green');
-  });
-
-  it('+10 min d’observation : marge 20, orange, accepté', () => {
-    const m = plannedMargin({ ...DEFAULT_PARAMS, observation: 25 });
-    expect(m).toBe(20);
-    expect(statusOf(m, R)).toBe('amber');
-    expect(isAllowed(m, R)).toBe(true);
-  });
-
-  it('+15 min d’observation : marge 15, refusé', () => {
-    const m = plannedMargin({ ...DEFAULT_PARAMS, observation: 30 });
-    expect(m).toBe(15);
-    expect(statusOf(m, R)).toBe('red');
-    expect(isAllowed(m, R)).toBe(false);
-  });
-
-  it('tempête, « poursuivre » à T+28 : marge −2, refusé', () => {
-    const m = margin({ autonomy: 120 - 28, allerRestant: 12, observation: 15, retour: 67 });
-    expect(m).toBe(-2);
-    expect(isAllowed(m, R)).toBe(false);
-  });
-
-  it('tempête, « retour immédiat » à T+28 : marge 55, accepté', () => {
-    expect(margin({ autonomy: 92, allerRestant: 0, observation: 0, retour: 37 })).toBe(55);
+describe('formule d’autonomie (spec §4)', () => {
+  it('marge = autonomie − (aller + observation + retour)', () => {
+    expect(margin({ autonomy: 120, allerRestant: 35, observation: 15, retour: 40 })).toBe(30);
+    expect(statusOf(30, 20)).toBe('green');
+    expect(statusOf(20, 20)).toBe('amber');
+    expect(statusOf(19, 20)).toBe('red');
+    expect(isAllowed(19, 20)).toBe(false);
   });
 
   it('heure limite pour quitter B', () => {
-    // arrivée T+35, autonomie à B 85, retour 40, réserve 20 → quitter à T+60
-    expect(latestLeaveB(35, 85, 40, 20)).toBe(60);
+    expect(latestLeaveB(35, 85, 40, 20)).toBe(60); // arrivée T+35, autonomie à B 85, retour 40, réserve 20
+  });
+});
+
+describe('durées issues des coûts du terrain', () => {
+  it('durée = coût ÷ vitesse ; aller = somme des segments, retour = moindre coût B → A', () => {
+    expect(minutesFor(55, 3.3)).toBeCloseTo(1, 10); // 3,3 km/h = 55 m/min
+    const sum = analysis.segments.reduce((a, s) => a + s.cost_m, 0);
+    expect(analysis.aller.cost_m).toBeCloseTo(sum, 0);
+    const { aller, retour } = plannedDurations(costs, d.speed_kmh);
+    expect(aller).toBeCloseTo(analysis.nominal.aller_min, 0);
+    expect(retour).toBeCloseTo(analysis.nominal.retour_min, 0);
   });
 
-  it('la vitesse modifie les durées', () => {
-    expect(plannedDurations(2.4)).toEqual({ aller: 48, retour: 55 });
+  it('la vitesse modifie les durées en proportion inverse', () => {
+    const slow = plannedDurations(costs, 2.4);
+    const fast = plannedDurations(costs, 3.3);
+    expect(slow.aller / fast.aller).toBeCloseTo(3.3 / 2.4, 10);
+  });
+
+  it('valeurs par défaut : marge nominale ≈ 30 min, statut vert', () => {
+    const m = plannedMargin(DEFAULTS, costs);
+    expect(Math.abs(m - 30)).toBeLessThanOrEqual(5);
+    expect(m).toBe(Math.round(analysis.nominal.margin_min));
+    expect(statusOf(m, DEFAULTS.reserve)).toBe('green');
+  });
+
+  it('+10 min d’observation : accepté ; +15 min : refusé (sous la réserve)', () => {
+    const m10 = plannedMargin({ ...DEFAULTS, observation: DEFAULTS.observation + 10 }, costs);
+    const m15 = plannedMargin({ ...DEFAULTS, observation: DEFAULTS.observation + 15 }, costs);
+    expect(isAllowed(m10, DEFAULTS.reserve)).toBe(true);
+    expect(isAllowed(m15, DEFAULTS.reserve)).toBe(false);
+  });
+});
+
+describe('cohérence zone de retour ↔ marge', () => {
+  const zp = zone.parameters;
+  const zb = zone.features[0].properties;
+
+  it('la zone utilise les mêmes paramètres, le même coût et la même vitesse que la marge', () => {
+    expect(zp.autonomy_min).toBe(DEFAULTS.autonomy);
+    expect(zp.reserve_min).toBe(DEFAULTS.reserve);
+    expect(zp.observation_min).toBe(DEFAULTS.observation);
+    expect(zp.speed_kmh).toBe(DEFAULTS.speedKmh);
+    expect(zp.threshold_min).toBeCloseTo(returnZoneThreshold(DEFAULTS, costs), 1);
+    expect(zb.return_cost_from_B_m).toBeCloseTo(analysis.return.cost_m, 0);
+  });
+
+  it('B est dans la zone ⇔ marge nominale ≥ réserve', () => {
+    const { aller, retour } = plannedDurations(costs, DEFAULTS.speedKmh);
+    const rawMargin = margin({ autonomy: DEFAULTS.autonomy, allerRestant: aller, observation: DEFAULTS.observation, retour });
+    expect(zb.contains_B).toBe(rawMargin >= DEFAULTS.reserve);
+    expect(zb.contains_B).toBe(retour <= returnZoneThreshold(DEFAULTS, costs));
   });
 });

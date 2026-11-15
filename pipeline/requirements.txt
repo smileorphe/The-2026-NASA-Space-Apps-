@@ -1,0 +1,8 @@
+# Python 3.11–3.13 : roues précompilées disponibles (scikit-image et h5py n'en ont pas encore pour 3.15)
+rasterio>=1.4
+pyogrio>=0.10
+pyproj>=3.6
+shapely>=2.0
+numpy>=1.26
+scikit-image>=0.24
+pillow>=10

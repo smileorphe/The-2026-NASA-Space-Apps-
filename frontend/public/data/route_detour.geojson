@@ -1,38 +1,38 @@
 {
-  "type": "FeatureCollection",
-  "name": "route_detour",
-  "features": [
-    {
-      "type": "Feature",
-      "properties": {
-        "id": "route_detour",
-        "obstacle": [
-          77.4753422,
-          18.4579434
-        ]
-      },
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            77.4724078,
-            18.4558683
-          ],
-          [
-            77.4756979,
-            18.4558346
-          ],
-          [
-            77.4790769,
-            18.4585339
-          ],
-          [
-            77.4800016,
-            18.4611151
-          ]
-        ]
-      }
-    }
-  ],
-  "note": "MOCK — longitude/latitude Mars 2000 (EPSG:104905, longitudes est). Point A placé provisoirement au site d’atterrissage de Perseverance ; tracé à remplacer par celui validé au Scope & Data Gate."
+ "type": "FeatureCollection",
+ "name": "route_detour",
+ "note": "Lon/lat Mars 2000 (EPSG:104905, longitudes est). Tracé de démonstration dans la zone de l'équipe data, généré par pipeline/route.py ; pentes vérifiées par pipeline/route_analysis.py.",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "route_detour",
+    "obstacle": [
+     77.3571528,
+     18.5490866
+    ]
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      77.3570193,
+      18.5470495
+     ],
+     [
+      77.3553733,
+      18.5483865
+     ],
+     [
+      77.3556402,
+      18.5515919
+     ],
+     [
+      77.3574197,
+      18.5531609
+     ]
+    ]
+   }
+  }
+ ]
 }

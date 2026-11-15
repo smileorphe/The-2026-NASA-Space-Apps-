@@ -26,3 +26,6 @@ export function fmtDuration(min: number): string {
   const m = Math.round(min);
   return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${pad(m % 60)}`;
 }
+
+/** 14.7 → « 14,7° ». */
+export const fmtDeg = (deg: number) => `${deg.toFixed(1).replace('.', ',')}°`;

@@ -29,14 +29,16 @@ src/
     mission.ts       état de mission, actions (réducteur), avance de l’horloge, valeurs dérivées
     geometry.ts      distances et interpolation le long d’un tracé métrique
     projection.ts    lon/lat Mars 2000 ↔ mètres dans un repère local centré sur A
-  data.ts            chargement de public/data/ + analyse du tracé (API, sinon mock)
+    slope.ts         classes de pente (≤10 / 10–15 / 15–20 / >20°), mêmes seuils que pipeline/config.py
+  data.ts            chargement de public/data/ + analyse du tracé (API, sinon route_analysis.json)
   store.ts           store Zustand, persistance localStorage, synchronisation BroadcastChannel
   format.ts          T+mm:ss, distances, durées
   map/mars.ts        projection EPSG:104905 pour OpenLayers + fabrique de couches WMTS
   components/        briques d’interface partagées (carte, graphiques, journal, étiquettes)
   habitat/ tablet/ helmet/   un dossier par mode
   styles.css         tokens de design (spec §3) + classes partagées
-public/data/         tracés GeoJSON, scénarios d’imprévu, couches (MOCK à remplacer au Data Gate)
+public/data/         produits de ../pipeline/ (tracés, analyse, sable CRISM, géologie, itinéraires, zone de retour),
+                     scénarios d’imprévu, description des couches (layers.json)
   wmts/              GetCapabilities archivés (traçabilité des paramètres WMTS)
 ```
 
@@ -96,11 +98,16 @@ Couches actuelles, de bas en haut. Relevés du 2026-11-15, vérifiés par `src/m
 npm run tiles                           # les trois couches
 npm run tiles -- --layer imagery        # une seule couche : imagery | ctx | basemap
 npm run tiles -- --margin 800           # autre marge autour du tracé (HiRISE)
+npm run tiles -- --clean                # vide le dossier de chaque couche traitée, puis retélécharge
+npm run tiles -- --layer ctx --clean    # idem pour une seule couche
 ```
 
 - **Validation :** chaque tuile est **décodée** avant d’être enregistrée (PNG : blocs complets, flux zlib, pixels lus ; JPEG : décodage strict avec `jpeg-js`). Les tuiles invalides, transparentes ou uniformes sont écartées : un code HTTP 200 ne suffit jamais.
 - **Reprise :** les tuiles déjà présentes et valides ne sont pas retéléchargées. Un `manifest.json` par couche indique l’emprise, la date et les comptes par niveau.
-- **Anomalie connue :** la tuile CTX `1/0/2` renvoie une erreur 500 de façon reproductible. Ce niveau n’est jamais affiché, car la vue ne descend pas en dessous du niveau 10 de CTX.
+- **Anomalies connues :** elles sont déclarées dans `PLAN[].knownAnomalies` (`scripts/fetch-tiles.mjs`) et recopiées dans le champ `knownAnomalies` du manifeste, avec leur statut lors du dernier passage (`reproduite`, `non reproduite`, `autre erreur`, `non vérifiée`). Le script les affiche **en avertissement** (⚠), sans code d’erreur.
+  - Aujourd’hui, une seule : CTX `1/0/2` renvoie une erreur 500 reproductible. Ce niveau n’est jamais affiché, car la vue ne descend pas en dessous du niveau 10 de CTX.
+- **Code de sortie :** `npm run tiles` ne sort en erreur (code 1) que pour des tuiles invalides **inattendues**, listées (✗) et recopiées dans le champ `unexpectedFailures` du manifeste. Une anomalie connue qui échoue avec une autre erreur que celle déclarée est traitée comme inattendue.
+  - Pour déclarer une nouvelle anomalie, l’ajouter à `knownAnomalies` avec la tuile (`niveau/ligne/colonne`), le message d’erreur attendu et la raison pour laquelle elle est sans effet sur la carte.
 
 **Quand relancer `npm run tiles`, puis committer `public/tiles/` :**
 - le tracé change (`route_aller.geojson` ou `route_detour.geojson`, en particulier quand le point A sera fixé au Scope & Data Gate) : la zone HiRISE en dépend ;
@@ -108,7 +115,13 @@ npm run tiles -- --margin 800           # autre marge autour du tracé (HiRISE)
 - le plafond de zoom `MAX_VIEW_LEVEL` (`MissionMap.tsx`) ou les niveaux du script (`PLAN` dans `scripts/fetch-tiles.mjs`) changent ;
 - un `manifest.json` signale des tuiles invalides (serveur indisponible au moment du téléchargement).
 
-Si la zone rétrécit, supprimer d’abord le dossier de la couche concernée, car le script n’efface pas les tuiles devenues inutiles.
+Sans `--clean`, le script complète le cache et garde les tuiles existantes. Il ne supprime pas celles qui ne servent plus.
+
+Utiliser **`--clean`** quand :
+- la zone rétrécit ou que des niveaux sont retirés ;
+- un paramètre WMTS change (`url`, `layer`, `localTiles`) : il ne faut pas mélanger les tuiles de deux sources.
+
+L’option ne supprime que le dossier des couches traitées (`--layer` pour en cibler une), et uniquement sous `public/tiles/`. Après `--clean`, vérifier le résumé avant de committer : une tuile qui n’a pas pu être retéléchargée manquera dans le cache.
 
 **Bascule automatique (`src/map/mars.ts`), pour les trois couches :**
 - si le serveur ne répond pas (réseau, délai de 5 s, erreur 5xx), toutes les tuiles de la couche sont lues dans le cache pendant 60 s, puis le serveur est réessayé ;
@@ -120,10 +133,22 @@ Si la zone rétrécit, supprimer d’abord le dossier de la couche concernée, c
 En développement, une tuile absente du cache est servie par Vite sous forme de page HTML (statut 200) : elle est rejetée au décodage, ce qui est normal.
 
 
-**Brancher les vraies données (après le Scope & Data Gate).**
-- **Analyse du tracé :** `data.ts` appelle `GET ${VITE_API_URL ?? '/api'}/route/analysis` (proxy Vite vers `localhost:8000`) et attend le contrat de la spec §6. En cas d’échec, il utilise le mock `src/mocks/routeAnalysis.json` ; le tableau de provenance indique la source réellement utilisée.
-- **Tracés :** remplacer `route_aller.geojson` et `route_detour.geojson` (lon/lat). Les points `A`, `W1`…`B` sont des `Point` avec `properties.id`. Le point A du mock est placé provisoirement au site d’atterrissage de Perseverance.
-- **Emprises et provenance :** compléter `footprint`, `source`, `date`, `resolution` et `projection` dans `layers.json`.
+**Données de mission (produites par `../pipeline/`, voir son README).** Le front-end n’affiche que ces valeurs :
+
+| Fichier | Contenu | Utilisé par |
+|---|---|---|
+| `route_aller.geojson` · `route_detour.geojson` | tracé A → W1–W3 → B et détour (lon/lat) ; unité géologique et statut de chaque point | simulation, carte, fiche du point B |
+| `route_analysis.json` | distance, dénivelé, profil, pente maximale par segment (spec §6) | caractéristiques, profils, couleurs des segments, pente courante |
+| `public/tiles/slope/` | tuiles de pente (DTM 5 m) | couche « Pentes » |
+| `crism_regions.geojson` | régions CRISM légendées (Zastrow & Glotch 2021) | couche « Régions CRISM », classe du point B |
+| `crism_footprint_040ff.geojson` | contour de l’observation 040ff, sans classes | couche « Emprise CRISM » |
+| `geology.geojson` | unités, fronts de delta, cratères, ellipse Mars 2020 (USGS SIM 3464) | couche « Géologie » |
+| `routes_computed.geojson` · `return_zone.geojson` | itinéraires plus court et moindre coût ; zone de retour | couches et « Comparaison des itinéraires » |
+
+- **Analyse du tracé :** `data.ts` appelle d’abord `GET ${VITE_API_URL ?? '/api'}/route/analysis` (proxy Vite vers `localhost:8000`), avec le contrat de la spec §6. S’il échoue, il lit `route_analysis.json`. Le tableau de provenance indique la source réellement utilisée.
+- **Fichiers facultatifs :** les couches issues de la chaîne de traitement le sont ; si un fichier manque, la couche disparaît et l’application fonctionne avec le tracé GeoJSON seul.
+- **Durées :** uniquement les coûts de `route_analysis.json` divisés par la vitesse (`domain/autonomy.ts`). Le retour depuis B suit l’itinéraire de moindre coût B → A ; les options d’imprévu sont calculées à partir de ces coûts (`optionPlan`).
+- **Texte carbonates :** affiché sur la fiche du point B et sur la tablette seulement si B est dans une région MC (`crism_class` dans `route_aller.geojson`).
 
 ## Limites connues
 

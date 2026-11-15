@@ -7,15 +7,19 @@
  *   CTX    (ctx)      niveaux 0–10   zone « carte »   : toute l'emprise navigable (mosaïque HiRISE)
  *   MOLA   (basemap)  niveaux 0–7    zone « carte »
  *
- * Usage : npm run tiles [-- --layer imagery|ctx|basemap] [--margin 500]
+ * Usage : npm run tiles [-- --layer imagery|ctx|basemap] [--margin 500] [--clean]
+ *   --clean  vide le dossier de chaque couche traitée avant le téléchargement (zone qui rétrécit, niveaux retirés)
+ *
+ * Anomalies connues (PLAN[].knownAnomalies) : signalées en avertissement et recopiées dans le manifeste,
+ * sans code d'erreur. Le script ne sort en erreur que pour des tuiles invalides inattendues.
  *
  * Chaque tuile est décodée avant d'être enregistrée (PNG : blocs complets, flux zlib, pixels ;
  * JPEG : décodage complet via jpeg-js). Un code HTTP 200 ne prouve pas qu'une tuile contient une image.
  * Les tuiles invalides, transparentes ou uniformes ne sont pas enregistrées.
  * Paramètres WMTS et gabarits locaux (wmts.localTiles) : public/data/layers.json.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateSync } from 'node:zlib';
 import jpeg from 'jpeg-js';
@@ -26,14 +30,27 @@ const MARS_RADIUS_M = 3_396_190;
 const RAD = Math.PI / 180;
 const CONCURRENCY = 6;
 
+/**
+ * knownAnomalies : défauts constatés côté serveur, sans effet sur la carte. `error` doit apparaître dans le
+ * message d'échec pour que l'anomalie soit reconnue ; tout autre échec de la même tuile reste inattendu.
+ */
 const PLAN = [
-  { id: 'imagery', levels: [11, 15], zone: 'mission' },
-  { id: 'ctx', levels: [0, 10], zone: 'carte' },
-  { id: 'basemap', levels: [0, 7], zone: 'carte' },
+  { id: 'imagery', levels: [11, 15], zone: 'mission', knownAnomalies: [] },
+  {
+    id: 'ctx',
+    levels: [0, 10],
+    zone: 'carte',
+    knownAnomalies: [
+      { tile: '1/0/2', error: 'HTTP 500', reason: 'Erreur 500 reproductible côté serveur (constatée le 2026-11-15). Niveau jamais affiché : la vue ne descend pas sous le niveau 10 de CTX.' },
+    ],
+  },
+  { id: 'basemap', levels: [0, 7], zone: 'carte', knownAnomalies: [] },
 ];
 
 const args = Object.fromEntries(process.argv.slice(2).join(' ').split('--').filter(Boolean).map((a) => a.trim().split(/\s+/)));
 const MARGIN_M = Number(args.margin ?? 500);
+const CLEAN = 'clean' in args;
+const TILES_ROOT = join(PUBLIC, 'tiles') + sep;
 const readJson = (p) => JSON.parse(readFileSync(join(PUBLIC, p), 'utf8'));
 const layers = readJson('data/layers.json').layers;
 
@@ -159,18 +176,25 @@ async function fetchTile(url, tileSize) {
   }
 }
 
-async function fetchLayer({ id, levels: [min, max], zone }) {
+async function fetchLayer({ id, levels: [min, max], zone, knownAnomalies }) {
   const layer = layers.find((l) => l.id === id);
   const cfg = layer?.wmts;
   if (!cfg?.localTiles) throw new Error(`layers.json : ${id}.wmts.localTiles manquant`);
   const top = Math.min(max, cfg.maxUsableMatrix ?? cfg.maxMatrix);
   const extent = intersect(zone === 'mission' ? missionExtent() : mapExtent(), cfg.boundingBox);
+  const dir = join(PUBLIC, cfg.localTiles.split('{')[0]);
+  if (!dir.startsWith(TILES_ROOT)) throw new Error(`${id} : dossier local hors de public/tiles/ (${dir})`);
+  if (CLEAN) {
+    rmSync(dir, { recursive: true, force: true });
+    console.log(`\n--clean : ${dir.slice(PUBLIC.length)} vidé`);
+  }
 
   const jobs = [];
   for (let z = min; z <= top; z++) {
     const r = tileRange(cfg, z, extent);
     for (let row = r.row0; row <= r.row1; row++) for (let col = r.col0; col <= r.col1; col++) jobs.push({ z, row, col });
   }
+  const jobs0 = new Set(jobs.map((j) => `${j.z}/${j.row}/${j.col}`));
   console.log(`\n${layer.name} · niveaux ${min}–${top} · zone ${zone} (lon ${extent[0].toFixed(4)}–${extent[2].toFixed(4)}, lat ${extent[1].toFixed(4)}–${extent[3].toFixed(4)}) · ${jobs.length} tuiles`);
 
   const stats = {};
@@ -193,24 +217,39 @@ async function fetchLayer({ id, levels: [min, max], zone }) {
         }
       } catch (err) {
         s.invalide++;
-        failures.push(`${z}/${row}/${col} : ${err.message}`);
+        failures.push({ tile: `${z}/${row}/${col}`, error: err.message });
       }
     }
   };
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
-  const dir = join(PUBLIC, cfg.localTiles.split('{')[0]);
+  // Échecs attendus (anomalies connues) / inattendus
+  const isKnown = (f) => knownAnomalies.some((a) => a.tile === f.tile && f.error.includes(a.error));
+  const unexpected = failures.filter((f) => !isKnown(f));
+  const anomalies = knownAnomalies.map((a) => {
+    const f = failures.find((x) => x.tile === a.tile);
+    const inRun = jobs0.has(a.tile);
+    return { ...a, status: !inRun ? 'non vérifiée (hors niveaux/zone)' : f && isKnown(f) ? 'reproduite' : f ? 'autre erreur' : 'non reproduite (tuile valide)' };
+  });
+
+  mkdirSync(dir, { recursive: true });
   writeFileSync(
     join(dir, 'manifest.json'),
-    JSON.stringify({ layer: cfg.layer, source: cfg.url, generatedAt: new Date().toISOString(), zone, extent, marginM: zone === 'mission' ? MARGIN_M : null, levels: [min, top], stats, failures }, null, 2) + '\n',
+    JSON.stringify(
+      { layer: cfg.layer, source: cfg.url, generatedAt: new Date().toISOString(), zone, extent, marginM: zone === 'mission' ? MARGIN_M : null, levels: [min, top], stats, knownAnomalies: anomalies, unexpectedFailures: unexpected },
+      null,
+      2,
+    ) + '\n',
   );
   console.table(stats);
-  if (failures.length) console.log(`  Tuiles invalides (non enregistrées) :\n    ${failures.join('\n    ')}`);
-  return failures.length;
+  for (const a of anomalies) console.warn(`  ⚠ Anomalie connue ${a.tile} (${a.error}) : ${a.status}. ${a.reason}`);
+  if (unexpected.length) console.error(`  ✗ Tuiles invalides inattendues (non enregistrées) :\n    ${unexpected.map((f) => `${f.tile} : ${f.error}`).join('\n    ')}`);
+  return unexpected.length;
 }
 
 const selected = args.layer ? PLAN.filter((p) => p.id === args.layer) : PLAN;
 if (!selected.length) throw new Error(`--layer inconnu : ${args.layer} (imagery, ctx, basemap)`);
 let failed = 0;
 for (const p of selected) failed += await fetchLayer(p);
+if (failed) console.error(`\nÉchec : ${failed} tuile(s) invalide(s) inattendue(s). Voir unexpectedFailures dans les manifestes.`);
 process.exitCode = failed ? 1 : 0;

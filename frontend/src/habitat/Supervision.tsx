@@ -3,17 +3,17 @@ import { Link } from 'react-router';
 import { AutonomyChart, ElevationProfile } from '../components/charts';
 import { Icon } from '../components/Icon';
 import { MissionLog } from '../components/MissionLog';
-import { MissionMap, SlopeLegend } from '../components/MissionMap';
-import { CarbonateText } from '../components/PointB';
+import { CrismLegend, MissionMap, SlopeLegend } from '../components/MissionMap';
+import { PointBFacts } from '../components/PointB';
 import { Card, cssColor, Notice, type NoticeMsg, Stat, StatusPill, STATUS } from '../components/ui';
 import { isAllowed, plannedDurations, plannedMargin, statusOf } from '../domain/autonomy';
-import { type ClockSpeed, canExtend, extensionMargin, optionMargin, plannedTimeAt, returnMargin } from '../domain/mission';
+import { type ClockSpeed, canExtend, extensionMargin, optionMargin, planCosts, plannedTimeAt, returnMargin } from '../domain/mission';
 import type { IncidentId } from '../data';
-import { fmtDelta, fmtDistance, fmtT } from '../format';
+import { fmtDeg, fmtDelta, fmtDistance, fmtT } from '../format';
 import { dispatch, useMission, usePresence } from '../store';
 import { Header } from './HabitatLayout';
 
-const QUICK_MESSAGES = ['Ralentissez sur le segment W3 → B', 'Point B confirmé, bonne observation', 'Préparez le retour', 'Signalez l’état du sol'];
+const QUICK_MESSAGES = ['Ralentissez sur le front du lobe (W1 → W2)', 'Point B confirmé, bonne observation', 'Préparez le retour', 'Signalez l’état du sol'];
 const SPEEDS: { v: ClockSpeed; label: string }[] = [{ v: 0, label: 'Pause' }, { v: 1, label: '×1' }, { v: 10, label: '×10' }, { v: 60, label: '×60' }];
 
 export function Supervision() {
@@ -34,7 +34,7 @@ export function Supervision() {
     );
   }
 
-  const { aller, retour } = plannedDurations(s.params.speedKmh);
+  const { aller, retour } = plannedDurations(planCosts(data), s.params.speedKmh);
   const planEnd = aller + s.params.observation + retour;
   const byId = Object.fromEntries(data.waypoints.map((w) => [w.id, w]));
   const lastReached = data.waypoints.filter((w) => w.id !== 'A' && s.reached[w.id] !== undefined).pop();
@@ -49,7 +49,7 @@ export function Supervision() {
 
   // Options « que se passe-t-il si » : marge recalculée, refus sous la réserve
   const whatIf = [5, 10, 15].map((add) => {
-    const m = extensionMargin(s, add);
+    const m = extensionMargin(s, data, add);
     return {
       key: `+${add}`, name: 'Prolonger l’observation', detail: `+${add} min au point B`, margin: m, ok: canExtend(s) && isAllowed(m, reserve),
       apply: () => dispatch({ type: 'EXTEND_OBSERVATION', minutes: add, source: 'HABITAT' }),
@@ -92,7 +92,7 @@ export function Supervision() {
             <Stat label="Retour estimé" value={`${Math.round(view.budget.retour)} min`} sub={s.incident?.id === 'storm' ? 'vitesse × 0,6 · simulé' : 'tracé inversé · simulé'} />
             <Stat label="Prochain point" value={view.next ? `${view.next.id} · ${fmtDistance(view.next.distance)}` : '—'} sub={view.next ? `ETA ${fmtT(view.next.id === 'A' ? view.etaA : etaOf(view.next.id))}` : s.leg?.kind === 'site' ? 'au point B' : ''} />
             <Stat label="Écart horaire" value={fmtDelta(drift)} sub={lastReached ? `vs plan · ${lastReached.id} à ${fmtT(s.reached[lastReached.id])}` : 'aucun point franchi'} />
-            <Stat label="Pente actuelle" value={view.slope !== null ? `${view.slope}°` : '—'} sub={view.nextSlope !== null && view.slope !== null ? `suivant ${view.nextSlope}°` : 'dérivé du DTM'} />
+            <Stat label="Pente actuelle" value={view.slope !== null ? fmtDeg(view.slope) : '—'} sub={view.nextSlope !== null && view.slope !== null ? `max du segment · suivant ${fmtDeg(view.nextSlope)}` : 'dérivé du DTM'} />
           </div>
         </section>
 
@@ -111,6 +111,7 @@ export function Supervision() {
             <Stat label="Retour A" tag="sim" value={fmtT(view.etaA)} />
           </div>
           <SlopeLegend />
+          <CrismLegend />
         </Card>
 
         <Card title="Options de décision" tag="sim" className="s4">
@@ -133,7 +134,7 @@ export function Supervision() {
           </div>
           {incident ? (
             incident.options.map((o) => {
-              const m = optionMargin(s, o);
+              const m = optionMargin(s, data, o);
               const chosen = s.incident?.choice === o.id;
               return (
                 <OptionButton key={o.id} name={o.label} detail={o.detail} margin={m} reserve={reserve} chosen={chosen}
@@ -174,7 +175,7 @@ export function Supervision() {
         </Card>
 
         <Card title="Autonomie dans le temps" tag="sim" className="s6">
-          <AutonomyChart autonomy={s.params.autonomy} reserve={reserve} t={t} remaining={view.remaining} planEnd={planEnd} planMargin={plannedMargin(s.params)} etaA={view.etaA} margin={view.margin} />
+          <AutonomyChart autonomy={s.params.autonomy} reserve={reserve} t={t} remaining={view.remaining} planEnd={planEnd} planMargin={plannedMargin(s.params, planCosts(data))} etaA={view.etaA} margin={view.margin} />
         </Card>
 
         <Card title="Relief devant l’astronaute" tag="der" className="s6">
@@ -195,7 +196,7 @@ export function Supervision() {
                     <td><strong>{w.id}</strong></td>
                     <td className="mono">{fmtT(planned)}</td>
                     <td className="mono">{real !== undefined ? fmtT(real) : fmtT(etaOf(w.id))}</td>
-                    <td className="mono">{seg ? `${seg.slope_deg}°` : '—'}</td>
+                    <td className="mono">{seg ? fmtDeg(seg.slope_deg) : '—'}</td>
                     <td>{state}</td>
                   </tr>
                 );
@@ -216,7 +217,7 @@ export function Supervision() {
         </Card>
 
         <Card title="Point B" tag="der" className="s12">
-          <CarbonateText />
+          <PointBFacts />
           <div className="row small">
             <span className="kicker">Objectifs du site</span>
             <span>{s.objectives.photo ? '✓' : '○'} Photographier la formation</span>

@@ -1,18 +1,29 @@
 /**
- * Modèle d'autonomie simulée — LA formule unique (FRONTEND_SPEC §4).
- * Tous les écrans passent par ce module. Valeurs pédagogiques, pas un modèle physiologique.
+ * Modèle d'autonomie simulée — LA formule unique. Tous les écrans passent par ce module.
+ * Valeurs pédagogiques, pas un modèle physiologique.
  *
  *   marge = autonomie − (allerRestant + observation + retour)
+ *
+ * Durées : uniquement celles de route_analysis.json, sous forme de coûts (longueur équivalente en mètres de
+ * terrain plat, pipeline/terrain.py) divisés par la vitesse. Aller = somme des segments du tracé ;
+ * retour = itinéraire de moindre coût B → A.
  */
 
 export interface SimParams {
   autonomy: number; // min, budget total de la sortie
-  speedKmh: number; // vitesse de marche simulée
+  speedKmh: number; // vitesse de marche sur terrain plat
   observation: number; // min prévues au point B
   reserve: number; // min, seuil du statut rouge
 }
 
-export const DEFAULT_PARAMS: SimParams = { autonomy: 120, speedKmh: 3.3, observation: 15, reserve: 20 };
+/** Coûts du plan (m de plat), lus dans route_analysis.json. */
+export interface PlanCosts {
+  allerCostM: number;
+  retourCostM: number;
+}
+
+/** Valeurs de repli avant le chargement des données ; les valeurs par défaut viennent de route_analysis.json. */
+export const FALLBACK_PARAMS: SimParams = { autonomy: 145, speedKmh: 3.3, observation: 15, reserve: 20 };
 
 export const SPEEDS = [2.4, 2.7, 3.0, 3.3, 3.6] as const;
 export const LIMITS = {
@@ -21,16 +32,13 @@ export const LIMITS = {
   reserve: { min: 10, max: 40, step: 5 },
 } as const;
 
-/** Durées de référence à 3,3 km/h. Mock tant que le backend ne fournit pas les durées par segment. */
-const REF_SPEED = 3.3;
-const REF_ALLER = 35;
-const REF_RETOUR = 40;
+export const metresPerMinute = (speedKmh: number) => (speedKmh * 1000) / 60;
 
-export function plannedDurations(speedKmh: number) {
-  return {
-    aller: Math.round((REF_ALLER * REF_SPEED) / speedKmh),
-    retour: Math.round((REF_RETOUR * REF_SPEED) / speedKmh),
-  };
+/** Durée (min) correspondant à un coût (m de plat) à une vitesse donnée. */
+export const minutesFor = (costM: number, speedKmh: number) => costM / metresPerMinute(speedKmh);
+
+export function plannedDurations(costs: PlanCosts, speedKmh: number) {
+  return { aller: minutesFor(costs.allerCostM, speedKmh), retour: minutesFor(costs.retourCostM, speedKmh) };
 }
 
 export interface Budget {
@@ -62,8 +70,16 @@ export function latestLeaveB(arrivalB: number, autonomyAtB: number, retour: numb
   return arrivalB + (autonomyAtB - retour - reserve);
 }
 
-/** Marge du plan avant départ. */
-export function plannedMargin(p: SimParams): number {
-  const { aller, retour } = plannedDurations(p.speedKmh);
-  return margin({ autonomy: p.autonomy, allerRestant: aller, observation: p.observation, retour });
+/** Marge du plan avant départ (arrondie à la minute, comme partout à l'affichage). */
+export function plannedMargin(p: SimParams, costs: PlanCosts): number {
+  const { aller, retour } = plannedDurations(costs, p.speedKmh);
+  return Math.round(margin({ autonomy: p.autonomy, allerRestant: aller, observation: p.observation, retour }));
+}
+
+/**
+ * Seuil de la zone de retour (min) : temps restant pour rentrer en gardant la réserve, une fois l'aller et
+ * l'observation faits. B est dans la zone ⇔ retour ≤ seuil ⇔ marge ≥ réserve.
+ */
+export function returnZoneThreshold(p: SimParams, costs: PlanCosts): number {
+  return p.autonomy - p.reserve - (plannedDurations(costs, p.speedKmh).aller + p.observation);
 }

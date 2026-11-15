@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { loadMissionData } from './data';
+import { initMission } from './store';
 import { Bilan } from './habitat/Bilan';
 import { HabitatLayout } from './habitat/HabitatLayout';
 import { Preparation } from './habitat/Preparation';
@@ -14,6 +15,7 @@ const root = createRoot(document.getElementById('root')!);
 
 // Les données de mission sont chargées une fois avant le premier rendu : les écrans les lisent de façon synchrone.
 loadMissionData()
+  .then(() => initMission())
   .then(() =>
     root.render(
       <StrictMode>

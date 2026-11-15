@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { getData } from './data';
-import { type Action, type MissionState, deriveView, initialState, reduce } from './domain/mission';
+import { type Action, type MissionState, defaultParams, deriveView, initialState, reduce } from './domain/mission';
 
 export type Role = 'habitat' | 'tablette' | 'casque';
 
@@ -21,9 +21,29 @@ type Message =
   | { kind: 'hello' }
   | { kind: 'presence'; role: Role };
 
+// version 3 : durées issues des coûts du terrain ; les états persistés des versions précédentes sont ignorés
+const STORAGE_KEY = 'eva-planner';
 export const useMissionStore = create<{ mission: MissionState }>()(
-  persist(() => ({ mission: initialState() }), { name: 'eva-planner', version: 1 }),
+  persist(() => ({ mission: initialState() }), { name: STORAGE_KEY, version: 3 }),
 );
+
+/**
+ * À appeler une fois les données chargées : sans état mémorisé, la mission démarre avec les valeurs par défaut
+ * de route_analysis.json (réglées dans pipeline/config.py).
+ */
+export function initMission() {
+  let saved: string | null = null;
+  try {
+    saved = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    /* stockage indisponible : on part des valeurs par défaut */
+  }
+  const savedVersion = saved ? (JSON.parse(saved) as { version?: number }).version : undefined;
+  if (savedVersion !== 3) {
+    const data = getData();
+    useMissionStore.setState({ mission: initialState(defaultParams(data), data) });
+  }
+}
 
 const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('eva-planner') : null;
 const post = (m: Message) => channel?.postMessage(m);

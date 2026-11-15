@@ -1,7 +1,7 @@
 {
   "layer": "Mars_MGS_MOLA_ClrShade_merge_global_463m",
   "source": "https://trek.nasa.gov/tiles/Mars/EQ/Mars_MGS_MOLA_ClrShade_merge_global_463m/1.0.0//{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.jpg",
-  "generatedAt": "2026-11-15T00:37:12.274Z",
+  "generatedAt": "2026-11-15T03:33:58.569Z",
   "zone": "carte",
   "extent": [
     77.2229331,
@@ -64,5 +64,6 @@
       "dejaPresente": 0
     }
   },
-  "failures": []
+  "knownAnomalies": [],
+  "unexpectedFailures": []
 }

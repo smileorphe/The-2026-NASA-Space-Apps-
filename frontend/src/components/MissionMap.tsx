@@ -1,7 +1,8 @@
 /**
  * Carte de mission (OpenLayers).
- * Fond : mosaïque HiRISE de Jezero en WMTS (Mars Trek). Calques vectoriels : emprises, tracé coloré par pente,
- * waypoints et, en mode `live`, position simulée, trajet réalisé, détour et retour.
+ * Fonds WMTS (MOLA, CTX, HiRISE) et tuiles de pente locales ; couches issues de pipeline/ (sable CRISM, géologie,
+ * itinéraires calculés, zone de retour, emprise CRISM) ; tracé coloré par pente, waypoints et, en mode `live`,
+ * position simulée, trajet réalisé, détour et retour.
  * Les géométries de mission sont en mètres locaux ; `data.projection.toLonLat` est la seule conversion vers la carte.
  */
 import { useEffect, useRef, useState } from 'react';
@@ -9,7 +10,8 @@ import 'ol/ol.css';
 import OlMap from 'ol/Map';
 import View from 'ol/View';
 import Feature from 'ol/Feature';
-import { LineString, Point, Polygon } from 'ol/geom';
+import GeoJSON from 'ol/format/GeoJSON';
+import { LineString, Point } from 'ol/geom';
 import { defaults as defaultControls, ScaleLine } from 'ol/control';
 import { defaults as defaultInteractions } from 'ol/interaction';
 import { asArray } from 'ol/color';
@@ -20,26 +22,24 @@ import VectorSource from 'ol/source/Vector';
 import { Circle, Fill, RegularShape, Stroke, Style, Text } from 'ol/style';
 import { slicePath, type XY } from '../domain/geometry';
 import type { MissionData, Waypoint } from '../data';
+import { SLOPE_CLASSES, slopeClass } from '../domain/slope';
 import type { MissionState, View as MissionView } from '../domain/mission';
 import { MARS_2000, type TileOrigin, wmtsLayer, wmtsResolutions } from '../map/mars';
 import { useMission } from '../store';
 import { Icon } from './Icon';
 import { cssColor } from './ui';
 
-/** Seuils de pente : paramètres de démonstration, pas des normes. */
-export const SLOPE_CLASSES = [
-  { max: 8, color: '#1FC48F', label: 'Pente < 8°' },
-  { max: 15, color: '#F2C230', label: '8–15°' },
-  { max: Infinity, color: '#F4605A', label: '> 15°' },
-];
-const slopeColor = (deg: number) => SLOPE_CLASSES.find((c) => deg < c.max)!.color;
-
-type LayerKey = 'imagery' | 'crism' | 'footprints';
+type LayerKey = 'imagery' | 'slope' | 'regions' | 'geology' | 'routes' | 'returnZone' | 'crism';
 const TOGGLES: { id: LayerKey; label: string; color: string }[] = [
   { id: 'imagery', label: 'HiRISE', color: 'var(--text)' },
-  { id: 'crism', label: 'CRISM', color: 'var(--carb)' },
-  { id: 'footprints', label: 'Emprises', color: 'var(--muted)' },
+  { id: 'slope', label: 'Pentes', color: '#F28A2E' },
+  { id: 'regions', label: 'Régions CRISM', color: '#B59CFF' },
+  { id: 'geology', label: 'Géologie', color: '#FFE650' },
+  { id: 'routes', label: 'Itinéraires calculés', color: '#B59CFF' },
+  { id: 'returnZone', label: 'Zone de retour', color: '#1FC48F' },
+  { id: 'crism', label: 'Emprise CRISM', color: 'var(--carb)' },
 ];
+const DEFAULT_ON: Record<LayerKey, boolean> = { imagery: true, slope: true, regions: true, geology: false, routes: false, returnZone: false, crism: false };
 
 /**
  * Zoom maximal de la vue : niveau 15 de la grille HiRISE (≈ 1,3 m/px).
@@ -78,16 +78,39 @@ const obstacleStyle = new Style({
 
 /* ---------------- Construction des entités ---------------- */
 
-function footprintFeatures(data: MissionData, id: 'topo' | 'crism'): Feature[] {
-  const fp = data.layers.find((l) => l.id === id)?.footprint;
-  if (!fp) return [];
-  const f = new Feature(new Polygon([[...fp, fp[0]]]));
-  f.setStyle(
-    id === 'crism'
-      ? new Style({ stroke: new Stroke({ color: '#B59CFF', width: 2, lineDash: [8, 6] }), fill: new Fill({ color: 'rgba(181,156,255,0.10)' }) })
-      : new Style({ stroke: new Stroke({ color: '#ABA39B', width: 1.5, lineDash: [3, 6] }) }),
-  );
-  return [f];
+const format = new GeoJSON(); // fichiers en lon/lat Mars 2000 = projection de la carte : aucune transformation
+
+/** Couche vectorielle à partir d'un GeoJSON de pipeline/ ; `style` reçoit les propriétés de chaque entité. */
+function geojsonLayer(gj: object | null, style: (p: Record<string, unknown>) => Style | Style[] | undefined) {
+  if (!gj) return undefined;
+  const features = format.readFeatures(gj);
+  for (const f of features) f.setStyle(style(f.getProperties()));
+  return new VectorLayer({ source: new VectorSource({ features }) });
+}
+
+/** Couleurs des classes CRISM (Zastrow & Glotch 2021) ; légende : CrismLegend. */
+export const CRISM_COLORS: Record<string, string> = { MC: '#B59CFF', MT: '#F28AB3', sand: '#E8C27A', mixture: '#8FA3B8' };
+const crismStyles = Object.fromEntries(
+  Object.entries(CRISM_COLORS).map(([code, color]) => {
+    const [r, g, b] = asArray(color);
+    return [code, new Style({ fill: new Fill({ color: [r, g, b, code === 'mixture' ? 0.12 : 0.3] }), stroke: new Stroke({ color, width: 1 }) })];
+  }),
+);
+const crismStyle = new Style({ stroke: new Stroke({ color: '#B59CFF', width: 2, lineDash: [8, 6] }) });
+const zoneStyle = new Style({ fill: new Fill({ color: 'rgba(31,196,143,0.12)' }), stroke: new Stroke({ color: '#1FC48F', width: 2, lineDash: [6, 4] }) });
+
+function geologyStyle(p: Record<string, unknown>): Style {
+  if (p.kind === 'unit')
+    return new Style({
+      stroke: new Stroke({ color: 'rgba(255,230,80,0.85)', width: 1.2 }),
+      text: new Text({ text: String(p.symbol), font: `700 12px ${FONT}`, fill: new Fill({ color: '#FFE650' }), stroke: new Stroke({ color: '#120F0D', width: 3 }), overflow: false }),
+    });
+  if (p.kind === 'ellipse') return line('#F3EFEA', 1.5, [4, 6], 0.8);
+  return line(String(p.type).includes('delta') ? '#FF4FD8' : '#4CC6EA', 2.5);
+}
+
+function routeStyle(p: Record<string, unknown>): Style {
+  return line(p.id === 'least_cost' ? '#B59CFF' : '#F3EFEA', 3, [10, 6]);
 }
 
 function missionFeatures(data: MissionData, s: MissionState, view: MissionView, live: boolean): Feature[] {
@@ -106,7 +129,7 @@ function missionFeatures(data: MissionData, s: MissionState, view: MissionView, 
   const byId = Object.fromEntries(data.waypoints.map((w) => [w.id, w]));
   const onDetour = s.incident?.id === 'obstacle' && s.incident.choice === 'detour';
   const out: Feature[] = data.analysis.segments.map((sg) =>
-    path(slicePath(data.route, byId[sg.from].d, byId[sg.to].d), line(slopeColor(sg.slope_deg), 5, undefined, onDetour && sg.to === 'B' ? 0.3 : 1)),
+    path(slicePath(data.route, byId[sg.from].d, byId[sg.to].d), line(slopeClass(sg.slope_deg).color, 5, undefined, onDetour && sg.to === 'B' ? 0.3 : 1)),
   );
 
   if (live && s.incident?.id === 'obstacle') {
@@ -133,8 +156,10 @@ export function MissionMap({ height = 460, live = false }: { height?: number; li
   const { s, view, data } = useMission();
   const target = useRef<HTMLDivElement>(null);
   const handle = useRef<MapHandle | null>(null);
-  const [on, setOn] = useState<Record<LayerKey, boolean>>({ imagery: true, crism: true, footprints: true });
+  const [on, setOn] = useState<Record<LayerKey, boolean>>(DEFAULT_ON);
   const imageryCfg = data.layers.find((l) => l.id === 'imagery')?.wmts;
+  const slopeCfg = data.layers.find((l) => l.id === 'slope')?.wmts;
+  const ov = data.overlays;
   const basemapCfg = data.layers.find((l) => l.id === 'basemap')?.wmts;
   const ctxCfg = data.layers.find((l) => l.id === 'ctx')?.wmts;
   // Couches actuellement servies par le cache local (serveur injoignable)
@@ -147,14 +172,24 @@ export function MissionMap({ height = 460, live = false }: { height?: number; li
     const basemap = basemapCfg ? wmtsLayer(basemapCfg, 'MOLA : NASA/JPL-Caltech/GSFC · NASA Mars Trek', track('MOLA')) : undefined;
     const ctx = ctxCfg ? wmtsLayer(ctxCfg, 'CTX : NASA/JPL-Caltech/MSSS · mosaïque Murray Lab (Caltech) · NASA Mars Trek', track('CTX')) : undefined;
     const imagery = imageryCfg ? wmtsLayer(imageryCfg, 'HiRISE : NASA/JPL-Caltech/University of Arizona · NASA Mars Trek', track('HiRISE')) : undefined;
-    const crism = new VectorLayer({ source: new VectorSource({ features: footprintFeatures(data, 'crism') }) });
-    const footprints = new VectorLayer({ source: new VectorSource({ features: footprintFeatures(data, 'topo') }) });
+    const slope = slopeCfg ? wmtsLayer(slopeCfg, 'Pentes : DTM HiRISE 1 m → 5 m (EVA Planner)') : undefined;
+    const layers: Record<LayerKey, BaseLayer | undefined> = {
+      imagery,
+      slope,
+      returnZone: geojsonLayer(ov.returnZone, () => zoneStyle),
+      regions: geojsonLayer(ov.crismRegions, (p) => crismStyles[String(p.code)]),
+      geology: geojsonLayer(ov.geology, geologyStyle),
+      crism: geojsonLayer(ov.crismFootprint, () => crismStyle),
+      routes: geojsonLayer(ov.routes, routeStyle),
+    };
     const mission = new VectorSource();
     const map = new OlMap({
       target: target.current!,
-      layers: [basemap, ctx, imagery, footprints, crism, new VectorLayer({ source: mission })].filter((l): l is NonNullable<typeof l> => !!l),
+      layers: [basemap, ctx, imagery, slope, layers.returnZone, layers.regions, layers.geology, layers.crism, layers.routes, new VectorLayer({ source: mission })].filter(
+        (l): l is NonNullable<typeof l> => !!l,
+      ),
       // Vue limitée à l'emprise de la mosaïque, zoom calé sur les niveaux de la grille HiRISE :
-      // le zoom maximal correspond au niveau 17 natif (pas de sur-agrandissement flou).
+      // le zoom maximal est MAX_VIEW_LEVEL.
       view: new View({
         projection: MARS_2000,
         extent: imageryCfg?.boundingBox,
@@ -164,14 +199,16 @@ export function MissionMap({ height = 460, live = false }: { height?: number; li
       controls: defaultControls({ attributionOptions: { collapsible: true } }).extend([new ScaleLine({ units: 'metric' })]),
       interactions: defaultInteractions({ mouseWheelZoom: false }), // la page défile, la carte zoome aux boutons
     });
-    map.getView().fit(boundingExtent(data.extent), { padding: [30, 30, 30, 30] });
-    handle.current = { map, layers: { imagery, crism, footprints }, mission };
+    // Vue initiale : tracé aller + détour
+    map.getView().fit(boundingExtent([...data.route, ...data.detour].map(data.projection.toLonLat)), { padding: [50, 50, 50, 50] });
+    for (const key of Object.keys(layers) as LayerKey[]) layers[key]?.setVisible(DEFAULT_ON[key]);
+    handle.current = { map, layers, mission };
     if (import.meta.env.DEV) (window as unknown as { __evaMap?: OlMap }).__evaMap = map; // diagnostic (console / tests)
     return () => {
       map.setTarget(undefined);
       handle.current = null;
     };
-  }, [data, imageryCfg, basemapCfg, ctxCfg]);
+  }, [data, imageryCfg, basemapCfg, ctxCfg, slopeCfg, ov]);
 
   // Mise à jour des entités de mission à chaque changement d'état
   useEffect(() => {
@@ -188,7 +225,19 @@ export function MissionMap({ height = 460, live = false }: { height?: number; li
     for (const key of Object.keys(on) as LayerKey[]) h.layers[key]?.setVisible(on[key]);
   }, [on]);
 
+  const available: Record<LayerKey, boolean> = {
+    imagery: !!imageryCfg, slope: !!slopeCfg, regions: !!ov.crismRegions, geology: !!ov.geology, routes: !!ov.routes, returnZone: !!ov.returnZone, crism: !!ov.crismFootprint,
+  };
   return (
+    <div className="stack" style={{ gap: 8 }}>
+      <div className="row" role="group" aria-label="Couches de la carte">
+        {TOGGLES.filter((t) => available[t.id]).map((t) => (
+          <button key={t.id} className="chip" aria-pressed={on[t.id]} onClick={() => setOn({ ...on, [t.id]: !on[t.id] })}>
+            <span className="dot" style={cssColor(t.color)} />
+            {t.label}
+          </button>
+        ))}
+      </div>
     <div className="map" style={{ height }}>
       <div ref={target} className="map-target" />
       {Object.values(cached).some(Boolean) && (
@@ -196,14 +245,7 @@ export function MissionMap({ height = 460, live = false }: { height?: number; li
           <Icon name="warning" size={14} /> Serveur injoignable · cache local : {Object.keys(cached).filter((k) => cached[k]).join(', ')}
         </div>
       )}
-      <div className="map-overlay">
-        {TOGGLES.filter((t) => t.id !== 'imagery' || imageryCfg).map((t) => (
-          <button key={t.id} className="chip" aria-pressed={on[t.id]} onClick={() => setOn({ ...on, [t.id]: !on[t.id] })}>
-            <span className="dot" style={cssColor(t.color)} />
-            {t.label}
-          </button>
-        ))}
-      </div>
+    </div>
     </div>
   );
 }
@@ -217,7 +259,25 @@ export function SlopeLegend() {
           {c.label}
         </span>
       ))}
-      <span>Seuils de pente : paramètres de démonstration</span>
+      <span>Pente du terrain (DTM 5 m) · tuiles : ≤ 10° non teinté · seuils : paramètres de démonstration</span>
+    </div>
+  );
+}
+
+/** Légende des régions CRISM, libellés lus dans crism_regions.geojson. */
+export function CrismLegend() {
+  const { data } = useMission();
+  const regions = data.overlays.crismRegions;
+  if (!regions) return null;
+  return (
+    <div className="legend">
+      {Object.entries(regions.legend).map(([code, l]) => (
+        <span key={code}>
+          <span className="dot" style={cssColor(CRISM_COLORS[code])} />
+          {l.label}
+        </span>
+      ))}
+      <span>CRISM, Zastrow &amp; Glotch 2021</span>
     </div>
   );
 }

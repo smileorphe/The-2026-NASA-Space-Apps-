@@ -1,0 +1,59 @@
+{
+ "layer": "slope",
+ "source": "pipeline/output/slope_5m.tif (DTM HiRISE 1 m → 5 m)",
+ "grid": "géographique Mars 2000, origine (-180, 90), 256 px, résolution 360/(512·2^z) — équivalent gdal2tiles --profile=geodetic --xyz",
+ "classes": [
+  {
+   "max_deg": 10.0,
+   "label": "≤ 10°",
+   "rgba": [
+    31,
+    196,
+    143,
+    0
+   ]
+  },
+  {
+   "max_deg": 15.0,
+   "label": "10–15°",
+   "rgba": [
+    242,
+    194,
+    48,
+    170
+   ]
+  },
+  {
+   "max_deg": 20.0,
+   "label": "15–20°",
+   "rgba": [
+    242,
+    138,
+    46,
+    185
+   ]
+  },
+  {
+   "max_deg": 999.0,
+   "label": "> 20°",
+   "rgba": [
+    244,
+    96,
+    90,
+    200
+   ]
+  }
+ ],
+ "levels": [
+  11,
+  15
+ ],
+ "tiles": {
+  "11": 4,
+  "12": 6,
+  "13": 15,
+  "14": 35,
+  "15": 117
+ },
+ "generated": "2026-11-15"
+}
