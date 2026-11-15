@@ -2,12 +2,11 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildMissionData, type RawFiles } from '../data';
 import { isAllowed } from './autonomy';
-import { type Action, type MissionState, defaultParams, deriveView, initialState, optionMargin, plannedTimeAt, reduce } from './mission';
+import { type Action, type MissionState, defaultParams, deriveView, initialState, momentAt, optionMargin, plannedTimeAt, reduce } from './mission';
 
 const read = (f: string) => JSON.parse(readFileSync(new URL(`../../public/data/${f}`, import.meta.url), 'utf8'));
 const data = buildMissionData({
   aller: read('route_aller.geojson'),
-  detour: read('route_detour.geojson'),
   scenarios: read('scenarios.json'),
   layersFile: read('layers.json'),
   analysis: read('route_analysis.json') as RawFiles['analysis'],
@@ -65,15 +64,6 @@ describe('simulation de la sortie', () => {
     expect(deriveView(s, data).alert).toBe('return');
   });
 
-  it('obstacle : le détour mène à B', () => {
-    let s = advance(run(start(), { type: 'LAUNCH' }), nominal.aller_min * 0.6);
-    s = run(s, { type: 'TRIGGER_INCIDENT', id: 'obstacle' }, { type: 'CHOOSE_OPTION', optionId: 'detour' });
-    expect(s.incident?.choice).toBe('detour');
-    s = advance(s, s.leg!.duration + 1);
-    expect(s.leg?.kind).toBe('site');
-    expect(s.reached.B).toBeDefined();
-  });
-
   it('au point B : +10 min d’observation accepté, +15 refusé', () => {
     const s = toB();
     expect(run(s, { type: 'EXTEND_OBSERVATION', minutes: 15, source: 'TABLETTE' })).toBe(s);
@@ -87,5 +77,27 @@ describe('simulation de la sortie', () => {
     s = advance(s, nominal.retour_min + 1);
     expect(s.phase).toBe('done');
     expect(deriveView(s, data).remaining).toBeGreaterThanOrEqual(s.params.reserve);
+  });
+
+  it('observation de la tablette : épingle à la position simulée', () => {
+    const s = run(advance(run(start(), { type: 'LAUNCH' }), 10), { type: 'LOG', source: 'TABLETTE', text: 'Photo', kind: 'Photo' });
+    const e = s.log[s.log.length - 1];
+    const here = data.projection.toLonLat(deriveView(s, data).position);
+    expect(e.pos).toBeDefined();
+    expect(e.pos![0]).toBeCloseTo(here[0], 7);
+    expect(e.pos![1]).toBeCloseTo(here[1], 7);
+  });
+
+  it('curseur de temps : position, marge et journal à un instant passé', () => {
+    let s = advance(run(start(), { type: 'LAUNCH' }), 10);
+    s = run(s, { type: 'LOG', source: 'TABLETTE', text: 'Note', kind: 'Observation' });
+    s = advance(s, 10);
+    const m = momentAt(s, data, 5);
+    expect(m.t).toBe(5);
+    expect(m.log.every((e) => e.t <= 5)).toBe(true);
+    expect(m.log.some((e) => e.text === 'Note')).toBe(false);
+    expect(m.margin).toBe(Math.round(nominal.margin_min));
+    const d = (p: [number, number], q: [number, number]) => Math.hypot(p[0] - q[0], p[1] - q[1]);
+    expect(d(m.position, data.route[0])).toBeLessThan(d(deriveView(s, data).position, data.route[0]));
   });
 });

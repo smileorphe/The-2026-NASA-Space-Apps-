@@ -1,6 +1,6 @@
 """P1 — Analyse du tracé sur l'extrait DTM à 5 m, au format FRONTEND_SPEC §6 enrichi des durées.
 
-Entrée : frontend/public/data/route_aller.geojson et route_detour.geojson.
+Entrée : frontend/public/data/route_aller.geojson.
 Sortie : frontend/public/data/route_analysis.json.
 
 Définitions :
@@ -20,7 +20,7 @@ from datetime import date
 import numpy as np
 
 import config as C
-from terrain import Terrain, densify, load_detour, load_route, m_per_min, to_lonlat
+from terrain import Terrain, densify, load_route, m_per_min, to_lonlat
 
 SEGMENT_IDS = ["A", "W1", "W2", "W3", "B"]
 
@@ -64,8 +64,6 @@ def main():
     aller_cost = sum(s["cost_m"] for s in segments)
 
     back, back_cost = return_route(t, pts["B"], pts["A"])
-    detour = load_detour()
-    detour_cost, _ = t.along(detour)
     nom = nominal(aller_cost, back_cost)
 
     out = {
@@ -73,7 +71,6 @@ def main():
         "aller": {"cost_m": round(aller_cost, 1), "duration_min": minutes(aller_cost)},
         "return": {"cost_m": round(back_cost, 1), "duration_min": minutes(back_cost), **t.analyse(back),
                    "coordinates": to_lonlat(back)},
-        "detour": {"cost_m": round(detour_cost, 1), "duration_min": minutes(detour_cost), **t.analyse(detour)},
         "defaults": {"autonomy_min": C.AUTONOMY_MIN, "speed_kmh": C.SPEED_KMH,
                      "observation_min": C.OBSERVATION_MIN, "reserve_min": C.RESERVE_MIN},
         "nominal": nom,

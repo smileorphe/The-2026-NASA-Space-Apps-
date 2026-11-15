@@ -6,6 +6,7 @@
  */
 import { distanceAlong, pathLength, type XY } from './domain/geometry';
 import { localProjection, type LocalProjection, type LonLat } from './domain/projection';
+import { makeScene, rasterOf, type Dataset, type SceneData } from './domain/scene';
 import { makeGrid, type GridMeta, type TerrainGrid } from './domain/terrain';
 
 /** Provenance d'une valeur (FRONTEND_SPEC §3) : observé, dérivé, interprétation, simulé. */
@@ -38,13 +39,14 @@ export interface Waypoint {
 /**
  * Option d'imprévu. Les durées ne sont pas écrites dans le scénario : elles sont calculées à partir des coûts
  * de route_analysis.json (domain/mission.ts, optionPlan).
- * - continue : poursuivre vers B sur le tracé ; detour : rejoindre B par route_detour ; back : rentrer à A.
+ * - continue : poursuivre vers B sur le tracé ; back : rentrer à A.
+ * L'obstacle n'est pas un scénario : il est placé sur la carte et recalculé par A* (domain/obstacle.ts).
  */
 export interface ScenarioOption {
   id: string;
   label: string;
   detail: string;
-  kind: 'continue' | 'detour' | 'back';
+  kind: 'continue' | 'back';
   speedFactor?: number; // ex. 0,6 par tempête (allure réduite)
 }
 
@@ -92,7 +94,6 @@ export interface RouteAnalysis {
   segments: { from: WaypointId; to: WaypointId; length_m: number; slope_deg: number; cost_m: number; duration_min: number }[];
   aller: { cost_m: number };
   return: { cost_m: number; distance_m: number; max_slope_deg: number; coordinates: LonLat[] }; // moindre coût B → A
-  detour: { cost_m: number; distance_m: number };
   defaults: { autonomy_min: number; speed_kmh: number; observation_min: number; reserve_min: number };
   nominal: { aller_min: number; observation_min: number; retour_min: number; margin_min: number };
 }
@@ -118,13 +119,6 @@ export interface RoutesComputed extends GeoJson<RouteStats> {
   mission: RouteStats;
 }
 
-export interface ReturnZone extends GeoJson<{ label: string; area_km2: number; contains_B: boolean; return_cost_from_B_m: number; return_min_from_B: number }> {
-  parameters: {
-    autonomy_min: number; reserve_min: number; observation_min: number; speed_kmh: number;
-    aller_min: number; threshold_min: number; threshold_cost_m: number; alpha_per_deg: number; sand_factor: number;
-  };
-}
-
 export interface CrismRegions extends GeoJson<{ code: CrismClass['code'] }> {
   source: string;
   legend: Record<CrismClass['code'], { label: string; label_en: string }>;
@@ -135,8 +129,7 @@ export interface Overlays {
   crismRegions: CrismRegions | null;
   crismFootprint: GeoJson | null;
   geology: GeoJson<{ kind: 'unit' | 'line' | 'ellipse'; symbol?: string; name?: string; type?: string }> | null;
-  routes: RoutesComputed | null;
-  returnZone: ReturnZone | null;
+  routes: RoutesComputed | null; // statistiques du tracé de référence (sable) ; les itinéraires affichés sont recalculés en direct
 }
 
 /** Les géométries de mission sont en mètres dans le repère local (voir domain/projection.ts). */
@@ -144,10 +137,8 @@ export interface MissionData {
   route: XY[];
   routeLength: number;
   waypoints: Waypoint[];
-  detour: XY[];
-  obstacle: XY | null;
   returnPath: XY[]; // itinéraire de moindre coût B → A
-  scenarios: Partial<Record<IncidentId, Scenario>>; // « obstacle » n'existe que pour le tracé de référence
+  scenarios: Partial<Record<IncidentId, Scenario>>; // scénarios prédéfinis (tempête) ; l'obstacle est placé sur la carte
   projection: LocalProjection; // conversion repère local ↔ lon/lat, origine = A
   projectionLabel: string;
   layers: LayerInfo[];
@@ -184,7 +175,6 @@ export function getData(): MissionData {
 
 export interface RawFiles {
   aller: GeoJson;
-  detour: GeoJson;
   scenarios: Record<IncidentId, Scenario>;
   layersFile: { projection: string; layers: LayerInfo[] };
   analysis: RouteAnalysis;
@@ -193,9 +183,8 @@ export interface RawFiles {
 }
 
 export async function loadMissionData(): Promise<MissionData> {
-  const [aller, detour, scenarios, layersFile, { analysis, source }, crismRegions, crismFootprint, geology, routes, returnZone] = await Promise.all([
+  const [aller, scenarios, layersFile, { analysis, source }, crismRegions, crismFootprint, geology, routes] = await Promise.all([
     getJson<GeoJson>('/data/route_aller.geojson'),
-    getJson<GeoJson>('/data/route_detour.geojson'),
     getJson<RawFiles['scenarios']>('/data/scenarios.json'),
     getJson<RawFiles['layersFile']>('/data/layers.json'),
     loadAnalysis(),
@@ -203,16 +192,15 @@ export async function loadMissionData(): Promise<MissionData> {
     getOptional<GeoJson>('/data/crism_footprint_040ff.geojson'),
     getOptional<NonNullable<Overlays['geology']>>('/data/geology.geojson'),
     getOptional<RoutesComputed>('/data/routes_computed.geojson'),
-    getOptional<ReturnZone>('/data/return_zone.geojson'),
   ]);
-  current = buildMissionData({ aller, detour, scenarios, layersFile, analysis, source, overlays: { crismRegions, crismFootprint, geology, routes, returnZone } });
+  current = buildMissionData({ aller, scenarios, layersFile, analysis, source, overlays: { crismRegions, crismFootprint, geology, routes } });
   return current;
 }
 
-const NO_OVERLAYS: Overlays = { crismRegions: null, crismFootprint: null, geology: null, routes: null, returnZone: null };
+const NO_OVERLAYS: Overlays = { crismRegions: null, crismFootprint: null, geology: null, routes: null };
 
 /** Assemble les fichiers bruts en données prêtes à l'emploi (pur, utilisé aussi par les tests). */
-export function buildMissionData({ aller, detour, scenarios, layersFile, analysis, source, overlays = NO_OVERLAYS }: RawFiles): MissionData {
+export function buildMissionData({ aller, scenarios, layersFile, analysis, source, overlays = NO_OVERLAYS }: RawFiles): MissionData {
   const line = aller.features.find((f) => f.geometry.type === 'LineString');
   if (!line) throw new Error('route_aller.geojson : LineString manquante');
   const lonLatRoute = line.geometry.coordinates as LonLat[];
@@ -235,15 +223,11 @@ export function buildMissionData({ aller, detour, scenarios, layersFile, analysi
     })
     .sort((a, b) => a.d - b.d);
 
-  const detourLine = detour.features[0];
-  const obstacle = detourLine.properties.obstacle as LonLat | undefined;
 
   return {
     route,
     routeLength: pathLength(route),
     waypoints,
-    detour: (detourLine.geometry.coordinates as LonLat[]).map(projection.toLocal),
-    obstacle: obstacle ? projection.toLocal(obstacle) : null,
     returnPath: analysis.return.coordinates.map(projection.toLocal),
     scenarios,
     projection,
@@ -255,18 +239,35 @@ export function buildMissionData({ aller, detour, scenarios, layersFile, analysi
   };
 }
 
+const fetchF32 = async (file: string) => {
+  const res = await fetch(`/data/terrain/${file}`);
+  if (!res.ok) throw new Error(`terrain/${file} : HTTP ${res.status}`);
+  return new Float32Array(await res.arrayBuffer());
+};
+
+let scene: Promise<SceneData> | null = null;
+
+/** Données de la vue 3D du casque (couloir 1 m, horizon CTX, description de l'ortho), chargées à la demande. */
+export function loadScene(): Promise<SceneData> {
+  scene ??= (async () => {
+    const [grid, meta] = await Promise.all([loadTerrain(), getJson<{ datasets?: Record<string, Dataset> }>('/data/terrain/grid.json')]);
+    const ds = meta.datasets;
+    if (!ds?.corridor || !ds.horizon || !ds.ortho) throw new Error('grid.json sans données de scène (relancer pipeline/terrain_export.py)');
+    const [corridor, horizon] = await Promise.all([fetchF32(ds.corridor.file), fetchF32(ds.horizon.file)]);
+    const data = current ?? (await loadMissionData());
+    return makeScene(grid, rasterOf(ds.corridor, corridor), rasterOf(ds.horizon, horizon), ds, data.projection.toLonLat(data.route[0]));
+  })();
+  scene.catch(() => (scene = null));
+  return scene;
+}
+
 let terrain: Promise<TerrainGrid> | null = null;
 
 /** Grilles altitude / pente / coût (public/data/terrain/, ≈ 4,7 Mo), chargées une seule fois à la demande. */
 export function loadTerrain(): Promise<TerrainGrid> {
   terrain ??= (async () => {
     const meta = await getJson<GridMeta>('/data/terrain/grid.json');
-    const f32 = async (file: string) => {
-      const res = await fetch(`/data/terrain/${file}`);
-      if (!res.ok) throw new Error(`terrain/${file} : HTTP ${res.status}`);
-      return new Float32Array(await res.arrayBuffer());
-    };
-    const [altitude, slope, cost] = await Promise.all([f32(meta.files.altitude), f32(meta.files.slope), f32(meta.files.cost)]);
+    const [altitude, slope, cost] = await Promise.all([fetchF32(meta.files.altitude), fetchF32(meta.files.slope), fetchF32(meta.files.cost)]);
     return makeGrid(meta, altitude, slope, cost);
   })();
   terrain.catch(() => (terrain = null)); // nouvel essai au prochain appel

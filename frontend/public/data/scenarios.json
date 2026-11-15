@@ -1,11 +1,4 @@
 {
-  "obstacle": {
-    "title": "Obstacle sur le tracé W3 → B",
-    "options": [
-      { "id": "detour", "label": "Détour prédéfini", "detail": "route_detour.geojson · durée selon le coût du terrain", "kind": "detour" },
-      { "id": "back", "label": "Retour à l’habitat", "detail": "Tracé connu · objectif scientifique abandonné", "kind": "back" }
-    ]
-  },
   "storm": {
     "title": "Tempête de poussière locale (fictive)",
     "options": [

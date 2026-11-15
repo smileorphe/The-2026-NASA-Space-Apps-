@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { Icon } from '../components/Icon';
+import { TimeCursor } from '../components/TimeCursor';
+import { momentAt } from '../domain/mission';
 import { MissionLog } from '../components/MissionLog';
 import { MissionMap } from '../components/MissionMap';
 import { Card, cssColor, Stat } from '../components/ui';
@@ -8,7 +11,9 @@ import { Header } from './HabitatLayout';
 import { ProvenanceTable } from '../components/ProvenanceTable';
 
 export function Bilan() {
-  const { s, view } = useMission();
+  const { s, view, data } = useMission();
+  const [atT, setAtT] = useState<number | null>(null); // relecture (null = fin de sortie)
+  const moment = atT === null ? null : momentAt(s, data, atT);
   const done = s.phase === 'done';
   const reserveKept = view.remaining >= s.params.reserve;
   const summary = {
@@ -70,8 +75,10 @@ export function Bilan() {
           </div>
         </section>
 
-        <Card title="Trajet réalisé" className="s7">
-          <MissionMap height={420} live />
+        <Card title="Relecture de la sortie" className="s7" extra={moment && <span className="small muted mono">{fmtT(moment.t)} · marge {moment.margin ?? '—'} min · autonomie {Math.round(moment.remaining)} min</span>}>
+          <MissionMap height={420} live atT={atT} />
+          {s.phase !== 'prep' && <TimeCursor t={s.clock.t} value={atT} onChange={setAtT} end={s.clock.t} />}
+          <p className="small muted">Épingles : observations de la tablette à leur position simulée (clic pour le détail). Le curseur rejoue position, marge et journal.</p>
         </Card>
 
         <Card title="Objectifs" className="s5">
@@ -84,8 +91,8 @@ export function Bilan() {
           ))}
         </Card>
 
-        <Card title="Journal complet" className="s7" extra={<button className="btn" onClick={exportJson} disabled={s.log.length === 0}>Exporter (JSON)</button>}>
-          <MissionLog entries={s.log} chronological maxHeight={420} />
+        <Card title={moment ? `Journal jusqu’à ${fmtT(moment.t)}` : 'Journal complet'} className="s7" extra={<button className="btn" onClick={exportJson} disabled={s.log.length === 0}>Exporter (JSON)</button>}>
+          <MissionLog entries={moment ? moment.log : s.log} chronological maxHeight={420} />
         </Card>
 
         <Card title="Sources utilisées" className="s5">

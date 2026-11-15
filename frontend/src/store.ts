@@ -11,7 +11,11 @@ import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { getData, loadTerrain } from './data';
-import { withPlan } from './domain/plan';
+import { routeAlternatives, withPlan } from './domain/plan';
+import { returnZoneThreshold } from './domain/autonomy';
+import { zoneMask } from './domain/inspect';
+import { planCosts } from './domain/mission';
+import type { MissionData } from './data';
 import { costField } from './domain/routing';
 import { cellAt, type TerrainGrid } from './domain/terrain';
 import { type Action, type MissionState, defaultParams, deriveView, initialState, reduce } from './domain/mission';
@@ -148,4 +152,21 @@ export function useTerrain(): { grid: TerrainGrid | null; error: string | null }
     };
   }, []);
   return state;
+}
+
+let altCache: { grid: TerrainGrid; key: string; value: ReturnType<typeof routeAlternatives> } | null = null;
+
+/** Itinéraires de comparaison A → B (plus court, moindre coût) pour le B courant ; mis en cache par position de B. */
+export function alternativesFor(grid: TerrainGrid, data: MissionData) {
+  const a = data.projection.toLonLat(data.route[0]);
+  const b = data.projection.toLonLat(data.waypoints[data.waypoints.length - 1].xy);
+  const key = `${b[0].toFixed(7)},${b[1].toFixed(7)}`;
+  if (altCache?.grid !== grid || altCache.key !== key) altCache = { grid, key, value: routeAlternatives(grid, a, b) };
+  return altCache.value;
+}
+
+/** Zone de retour au seuil courant (autonomie − réserve − (aller + observation)), en masque raster. */
+export function zoneFor(grid: TerrainGrid, data: MissionData, s: MissionState) {
+  const thresholdMin = returnZoneThreshold(s.params, planCosts(data));
+  return { thresholdMin, mask: zoneMask(costFromA(grid), thresholdMin, s.params.speedKmh) };
 }

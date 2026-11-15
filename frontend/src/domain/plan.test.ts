@@ -13,9 +13,9 @@ const read = (f: string) => JSON.parse(readFileSync(pub(f), 'utf8'));
 const meta = read('terrain/grid.json') as GridMeta & { references: { cells: Record<string, [number, number]>; least_cost_m: { from: string; to: string; cost_m: number }[] } };
 const f32 = (f: string) => new Float32Array(new Uint8Array(readFileSync(pub(`terrain/${f}`))).buffer);
 const grid = makeGrid(meta, f32('altitude.f32'), f32('slope.f32'), f32('cost.f32'));
-const overlays: Overlays = { crismRegions: read('crism_regions.geojson') as CrismRegions, geology: read('geology.geojson'), crismFootprint: null, routes: null, returnZone: null };
+const overlays: Overlays = { crismRegions: read('crism_regions.geojson') as CrismRegions, geology: read('geology.geojson'), crismFootprint: null, routes: null };
 const base = buildMissionData({
-  aller: read('route_aller.geojson'), detour: read('route_detour.geojson'), scenarios: read('scenarios.json'),
+  aller: read('route_aller.geojson'), scenarios: read('scenarios.json'),
   layersFile: read('layers.json'), analysis: read('route_analysis.json') as RawFiles['analysis'], source: 'pipeline', overlays,
 });
 const A = base.projection.toLonLat(base.route[0]);
@@ -61,11 +61,6 @@ describe('plan pour un B choisi sur la carte', () => {
     expect(isAllowed(m, tight.reserve)).toBe(false);
     const s = initialState(tight, base);
     expect(reduce(s, { type: 'SET_PLAN', plan: p }, base)).toBe(s);
-  });
-
-  it('le scénario « obstacle » n’existe que pour le tracé de référence', () => {
-    expect(withPlan(base, plan('MC1')).scenarios.obstacle).toBeUndefined();
-    expect(withPlan(base, null).scenarios.obstacle).toBeDefined();
   });
 });
 

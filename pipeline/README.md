@@ -16,12 +16,13 @@ Le dossier `nasa/data/` doit contenir le DTM HiRISE 1 m (`JEZ_hirise_soc_006_DTM
 |---|---|---|
 | `dtm.py` | extrait la zone de l’équipe data du DTM, le reprojette en équirectangulaire `lat_ts=18,55°` (pixels carrés, mètres réels) et le moyenne à 5 m ; calcule la pente | `output/dtm_5m.tif`, `output/slope_5m.tif` |
 | `vectors.py` | régions CRISM légendées (MC, MT, sable, mélange ; « Other » masqué comme dans l’étude), emprise CRISM 040ff, géologie USGS SIM 3464 découpée | `crism_regions.geojson`, `crism_footprint_040ff.geojson`, `geology.geojson` |
-| `route.py` | tracé de démonstration A → W1–W3 → B et détour, définis en mètres, exportés en lon/lat ; unité géologique de chaque point | `route_aller.geojson`, `route_detour.geojson` |
+| `route.py` | tracé de démonstration A → W1–W3 → B, défini en mètres, exporté en lon/lat ; unité géologique et classe CRISM de chaque point | `route_aller.geojson` |
 | `route_analysis.py` | distance, dénivelé, profil, pente et coût par segment, retour de moindre coût B → A, valeurs par défaut et marge nominale ; **échoue si une pente dépasse 20°** | `route_analysis.json` |
 | `slope_tiles.py` | tuiles de pente, grille géographique identique à `gdal2tiles --profile=geodetic --xyz` (niveaux 11–15) | `frontend/public/tiles/slope/` |
-| `paths.py` | itinéraires « plus court » et « moindre coût » (`route_through_array`), zone de retour (`MCP_Geometric`) avec contrôle de cohérence | `routes_computed.geojson`, `return_zone.geojson` |
+| `paths.py` | itinéraires « plus court » et « moindre coût » (`route_through_array`), zone de retour (`MCP_Geometric`) avec contrôle de cohérence ; **références** : le front-end recalcule ces couches en direct pour le B courant et ses tests les comparent à ces fichiers | `routes_computed.geojson`, `return_zone.geojson` |
 | `terrain.py` | outils communs : rasters, carte de coût unique, échantillonnage, moindre coût | — |
 | `terrain_export.py` | grilles altitude, pente et coût de l’extrait 5 m en Float32 + `grid.json` (dimensions, origine, cellule, projection, nodata, coûts de référence pour les tests du routage TypeScript) | `frontend/public/data/terrain/` (≈ 4,7 Mo, versionné) |
+| `scene_export.py` (appelé par `terrain_export.py`) | vue 3D du casque, même projection et même emprise que les grilles : ortho HiRISE 25 cm découpée, reprojetée et moyennée à 1,5 m (PNG 2034×2137) ; DTM 1 m sur un couloir de ±150 m autour du tracé de référence ; anneau d’horizon du DTM CTX 20 m (`J03_045994_1986_J03_046060_1986_20m_DTM.tif`, USGS) réduit à 100 m sur ~10 km, recalé de la médiane (HiRISE − CTX) = −3,83 m. Chaque fichier est décrit dans `grid.json` → `datasets` (emprise locale et lon/lat, cellule, source, résolution) | `frontend/public/data/terrain/` : `ortho.png` (2,9 Mo), `corridor_1m.f32` (4,7 Mo), `horizon_ctx.f32` (0,2 Mo) |
 
 Les paramètres (zone, projection, résolution, seuils de pente, α, facteur sable, budget de retour) sont dans `config.py`.
 

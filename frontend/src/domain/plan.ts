@@ -53,6 +53,57 @@ function simplify(pts: XY[], tol: number, lo = 0, hi = pts.length - 1, keep = ne
   return keep;
 }
 
+/** Analyse d'un chemin de cellules : distances et coûts cumulés, sable, dénivelé, profil (pas de 10 m). */
+export function analyseCells(g: TerrainGrid, cells: number[]) {
+  const xy = cells.map((i) => toGridXY(g, cellCenter(g, i)));
+  const dist = [0], cost = [0];
+  let sand = 0, gain = 0, loss = 0, maxSlope = 0;
+  const profile: RouteAnalysis['profile'] = [{ d: 0, z: g.altitude[cells[0]] }];
+  for (let k = 1; k < cells.length; k++) {
+    const step = Math.hypot(xy[k][0] - xy[k - 1][0], xy[k][1] - xy[k - 1][1]);
+    dist.push(dist[k - 1] + step);
+    cost.push(cost[k - 1] + ((g.cost[cells[k - 1]] + g.cost[cells[k]]) / 2) * step);
+    if (isSand(g, cells[k])) sand += step;
+    const dz = g.altitude[cells[k]] - g.altitude[cells[k - 1]];
+    if (dz > 0) gain += dz; else loss -= dz;
+    if (k === cells.length - 1 || Math.floor(dist[k] / 10) > Math.floor(dist[k - 1] / 10)) profile.push({ d: dist[k], z: g.altitude[cells[k]] });
+  }
+  for (const i of cells) maxSlope = Math.max(maxSlope, g.slope[i]);
+  return { xy, dist, cost, sand, gain, loss, maxSlope, profile, distance: dist[dist.length - 1], costM: cost[cost.length - 1] };
+}
+
+/** Tracé simplifié (Douglas–Peucker 2,5 m) en lon/lat ; `keepAt` : indices de cellules à garder comme sommets. */
+export function simplifiedPath(g: TerrainGrid, cells: number[], xy: XY[], keepAt: number[] = []): LonLat[] {
+  const cuts = [0, ...keepAt, cells.length - 1];
+  const keep = new Set<number>();
+  for (let s = 0; s < cuts.length - 1; s++) for (const i of simplify(xy, 2.5, cuts[s], cuts[s + 1])) keep.add(i);
+  return [...keep].sort((x, y) => x - y).map((i) => cellCenter(g, cells[i]));
+}
+
+/** Indicateurs d'un itinéraire (comparaison, options d'obstacle). */
+export interface PathSummary {
+  path: LonLat[];
+  distance_m: number;
+  elevation_gain_m: number;
+  elevation_loss_m: number;
+  max_slope_deg: number;
+  sand_m: number;
+  cost_m: number; // m de plat (coût du terrain, même si l'itinéraire a été cherché en distance seule)
+}
+
+export function summarise(g: TerrainGrid, cells: number[]): PathSummary {
+  const a = analyseCells(g, cells);
+  return { path: simplifiedPath(g, cells, a.xy), distance_m: a.distance, elevation_gain_m: a.gain, elevation_loss_m: a.loss, max_slope_deg: a.maxSlope, sand_m: a.sand, cost_m: a.costM };
+}
+
+/** Itinéraires de comparaison A → B : plus court (distance seule) et moindre coût. */
+export function routeAlternatives(g: TerrainGrid, a: LonLat, b: LonLat): { shortest: PathSummary | null; leastCost: PathSummary | null } {
+  const [s, e] = [cellAt(g, a), cellAt(g, b)];
+  const short = astar(g, s, e, 'uniform');
+  const least = astar(g, s, e, 'cost');
+  return { shortest: short ? summarise(g, short.cells) : null, leastCost: least ? summarise(g, least.cells) : null };
+}
+
 export function buildPlan(g: TerrainGrid, overlays: Overlays, a: LonLat, b: LonLat): PlanResult {
   const start = cellAt(g, a);
   const goal = cellAt(g, b);
@@ -61,43 +112,17 @@ export function buildPlan(g: TerrainGrid, overlays: Overlays, a: LonLat, b: LonL
   const r = astar(g, start, goal);
   if (!r) return { ok: false, reason: 'Aucun itinéraire sans pente > 20° ne relie A à ce point.' };
 
-  // Le long du chemin (cellule par cellule) : distance, coût, pente, altitude, sable
   const cells = r.cells;
-  const xy = cells.map((i) => toGridXY(g, cellCenter(g, i)));
-  const dist = [0], cost = [0];
-  let sand = 0;
-  for (let k = 1; k < cells.length; k++) {
-    const step = Math.hypot(xy[k][0] - xy[k - 1][0], xy[k][1] - xy[k - 1][1]);
-    dist.push(dist[k - 1] + step);
-    cost.push(cost[k - 1] + ((g.cost[cells[k - 1]] + g.cost[cells[k]]) / 2) * step);
-    if (isSand(g, cells[k])) sand += step;
-  }
-  const total = dist[dist.length - 1];
-  const split = [0, 0.25, 0.5, 0.75].map((f) => dist.findIndex((d) => d >= f * total)).concat(cells.length - 1);
+  const an = analyseCells(g, cells);
+  const split = [0, 0.25, 0.5, 0.75].map((f) => an.dist.findIndex((d) => d >= f * an.distance)).concat(cells.length - 1);
+  const route = simplifiedPath(g, cells, an.xy, split.slice(1, 4)); // W1–W3 restent des sommets
 
-  // Tracé simplifié (2,5 m) en gardant W1–W3 comme sommets
-  const keep = new Set<number>();
-  for (let s = 0; s < 4; s++) for (const i of simplify(xy, 2.5, split[s], split[s + 1])) keep.add(i);
-  const route = [...keep].sort((x, y) => x - y).map((i) => cellCenter(g, cells[i]));
-
-  const segments = IDS.slice(0, 4).map((from, s) => {
-    const [i0, i1] = [split[s], split[s + 1]];
+  const segments = IDS.slice(0, 4).map((from, k) => {
+    const [i0, i1] = [split[k], split[k + 1]];
     let maxSlope = 0;
-    for (let k = i0; k <= i1; k++) maxSlope = Math.max(maxSlope, g.slope[cells[k]]);
-    return { from, to: IDS[s + 1], length_m: dist[i1] - dist[i0], slope_deg: Math.round(maxSlope * 10) / 10, cost_m: cost[i1] - cost[i0], duration_min: 0 };
+    for (let q = i0; q <= i1; q++) maxSlope = Math.max(maxSlope, g.slope[cells[q]]);
+    return { from, to: IDS[k + 1], length_m: an.dist[i1] - an.dist[i0], slope_deg: Math.round(maxSlope * 10) / 10, cost_m: an.cost[i1] - an.cost[i0], duration_min: 0 };
   });
-
-  let gain = 0, loss = 0;
-  const profile: RouteAnalysis['profile'] = [];
-  for (let k = 0; k < cells.length; k++) {
-    const z = g.altitude[cells[k]];
-    if (k > 0) {
-      const dz = z - g.altitude[cells[k - 1]];
-      if (dz > 0) gain += dz; else loss -= dz;
-    }
-    if (k === 0 || k === cells.length - 1 || Math.floor(dist[k] / 10) > Math.floor(dist[k - 1] / 10)) profile.push({ d: dist[k], z });
-  }
-  const maxSlope = Math.max(...segments.map((s) => s.slope_deg));
   const bCenter = cellCenter(g, goal);
   return {
     ok: true,
@@ -107,12 +132,12 @@ export function buildPlan(g: TerrainGrid, overlays: Overlays, a: LonLat, b: LonL
       route,
       waypoints: { W1: cellCenter(g, cells[split[1]]), W2: cellCenter(g, cells[split[2]]), W3: cellCenter(g, cells[split[3]]) },
       segments,
-      profile,
-      distance_m: total,
-      elevation_gain_m: gain,
-      elevation_loss_m: loss,
-      max_slope_deg: maxSlope,
-      sand_m: sand,
+      profile: an.profile,
+      distance_m: an.distance,
+      elevation_gain_m: an.gain,
+      elevation_loss_m: an.loss,
+      max_slope_deg: Math.max(...segments.map((x) => x.slope_deg)),
+      sand_m: an.sand,
       allerCostM: r.costM,
       retourCostM: r.costM, // coûts symétriques : retour B → A au moindre coût = même chemin, même coût
       geologicUnit: unitAt(overlays.geology, bCenter),
@@ -144,10 +169,7 @@ export function withPlan(base: MissionData, plan: CustomPlan | null | undefined)
     route,
     routeLength: pathLength(route),
     waypoints,
-    detour: [],
-    obstacle: null,
     returnPath: back,
-    scenarios: { storm: base.scenarios.storm }, // le détour d'obstacle n'existe que pour le tracé de référence
     analysis: {
       ...base.analysis,
       distance_m: plan.distance_m,

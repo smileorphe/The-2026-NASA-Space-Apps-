@@ -57,7 +57,7 @@ const layers = readJson('data/layers.json').layers;
 /* ---------- Zones ---------- */
 function missionExtent() {
   const coords = [];
-  for (const f of ['data/route_aller.geojson', 'data/route_detour.geojson']) {
+  for (const f of ['data/route_aller.geojson']) {
     for (const { geometry: g } of readJson(f).features) coords.push(...(g.type === 'Point' ? [g.coordinates] : g.coordinates));
   }
   const lons = coords.map((c) => c[0]);

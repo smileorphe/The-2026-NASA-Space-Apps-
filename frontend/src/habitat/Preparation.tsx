@@ -6,12 +6,13 @@ import { CrismLegend, MissionMap, SlopeLegend } from '../components/MissionMap';
 import { PointBFacts, SiteImages } from '../components/PointB';
 import { ProvenanceTable } from '../components/ProvenanceTable';
 import { Card, Notice, type NoticeMsg, Stat, StatusPill, STATUS } from '../components/ui';
-import { isAllowed, LIMITS, plannedMargin, type SimParams, SPEEDS } from '../domain/autonomy';
+import { isAllowed, LIMITS, minutesFor, plannedDurations, plannedMargin, returnZoneThreshold, type SimParams, SPEEDS } from '../domain/autonomy';
+import { cellAt } from '../domain/terrain';
 import { fmtDeg, fmtDistance, fmtT } from '../format';
 import { planCosts } from '../domain/mission';
 import { slopeClass } from '../domain/slope';
 import { cssColor } from '../components/ui';
-import { dispatch, useMission } from '../store';
+import { alternativesFor, costFromA, dispatch, useMission, useTerrain } from '../store';
 import { Header } from './HabitatLayout';
 import { CurrentB, PickBar, SiteCandidates, TerrainInspector, useTerrainTools } from './TerrainTools';
 
@@ -176,14 +177,26 @@ function Stepper({ label, hint, value, onDec, onInc, disabled }: { label: string
   );
 }
 
-/** Tracé de mission et itinéraires calculés (pipeline/paths.py), évalués avec la même carte de coût. */
+/** Tracé de mission et itinéraires recalculés en direct pour le B courant (A* sur la grille 5 m, même carte de coût). */
 function RouteComparison() {
   const { s, data } = useMission();
-  const { routes, returnZone } = data.overlays;
-  if (!routes) return <p className="small muted">Itinéraires calculés indisponibles (routes_computed.geojson absent) : seul le tracé de mission est utilisé.</p>;
-  const rows = [routes.mission, ...routes.features.map((f) => f.properties)];
-  const zone = returnZone?.features[0]?.properties;
-  const zp = returnZone?.parameters;
+  const { grid, error } = useTerrain();
+  if (!grid) return <p className="small muted">{error ? `Grilles de terrain indisponibles : ${error}` : 'Chargement des grilles de terrain…'}</p>;
+  const a = data.analysis;
+  const alt = alternativesFor(grid, data);
+  const mission = { id: 'mission', label: 'Tracé de mission', distance_m: a.distance_m, elevation_gain_m: a.elevation_gain_m, elevation_loss_m: a.elevation_loss_m, max_slope_deg: a.max_slope_deg, sand_m: s.plan ? s.plan.sand_m : data.overlays.routes?.mission.sand_m, cost_m: a.aller.cost_m };
+  const rows = [
+    mission,
+    ...(alt.shortest ? [{ id: 'shortest', label: 'Plus court (distance seule)', ...alt.shortest }] : []),
+    ...(alt.leastCost ? [{ id: 'least', label: 'Moindre coût', ...alt.leastCost }] : []),
+  ];
+  const cp = grid.costParams;
+  // Zone de retour au seuil courant : B en fait partie si son retour au moindre coût vers A tient sous le seuil
+  const thresholdMin = returnZoneThreshold(s.params, planCosts(data));
+  const bCell = cellAt(grid, data.projection.toLonLat(data.waypoints[data.waypoints.length - 1].xy));
+  const fromB = bCell >= 0 ? costFromA(grid)[bCell] : Infinity;
+  const retB = Number.isFinite(fromB) ? minutesFor(fromB, s.params.speedKmh) : null;
+  const aller = plannedDurations(planCosts(data), s.params.speedKmh).aller;
   return (
     <>
       <table className="table">
@@ -197,23 +210,20 @@ function RouteComparison() {
               <td className="mono">{fmtDistance(r.distance_m)}</td>
               <td className="mono">+{Math.round(r.elevation_gain_m)} / −{Math.round(r.elevation_loss_m)} m</td>
               <td className="mono"><span className="dot" style={{ ...cssColor(slopeClass(r.max_slope_deg).color), display: 'inline-block', marginRight: 6 }} />{fmtDeg(r.max_slope_deg)}</td>
-              <td className="mono">{Math.round(r.sand_m)} m</td>
-              <td className="mono">{Math.round(r.cost)}</td>
+              <td className="mono">{r.sand_m !== undefined ? `${Math.round(r.sand_m)} m` : '—'}</td>
+              <td className="mono">{Math.round(r.cost_m)}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <p className="small muted">
-        Coût = (1 + {routes.parameters.alpha_per_deg} × pente°) × {routes.parameters.sand_factor} dans le sable ; pentes &gt; {routes.parameters.slope_max_deg}° interdites ;
-        coût 1 = 1 m de terrain plat. Le tracé de mission reste celui de la démonstration ; couches « Itinéraires calculés » et « Zone de retour » sur la carte.
+        Coût = (1 + {cp.alpha_per_deg} × pente°) × {cp.sand_factor} dans le sable ; pentes &gt; {cp.slope_max_deg}° interdites ; coût 1 = 1 m de terrain plat.
+        Itinéraires et zone de retour recalculés dans le navigateur pour le B courant (couches « Itinéraires calculés » et « Zone de retour »).
       </p>
-      {s.plan && (
-        <Notice msg={{ color: 'var(--muted)', title: 'Référence.', text: 'Ce tableau, la couche « Itinéraires calculés » et la couche « Zone de retour » sont calculés par pipeline/ pour le B de référence. Pour le B choisi, l’inspecteur donne la zone de retour en direct.' }} />
-      )}
-      {!s.plan && zone && zp && (
-        <Notice msg={zone.contains_B
-          ? { color: STATUS.green.color, title: 'B dans la zone de retour.', text: `Retour depuis B ${fmtMinutes(zone.return_min_from_B)} ≤ seuil ${fmtMinutes(zp.threshold_min)} (autonomie ${zp.autonomy_min} − réserve ${zp.reserve_min} − aller ${fmtMinutes(zp.aller_min)} − observation ${zp.observation_min}), aux paramètres par défaut.` }
-          : { color: STATUS.amber.color, title: 'B hors de la zone de retour.', text: `Retour depuis B ${fmtMinutes(zone.return_min_from_B)} > seuil ${fmtMinutes(zp.threshold_min)} : la marge nominale est sous la réserve.` }} />
+      {retB !== null && (
+        <Notice msg={retB <= thresholdMin
+          ? { color: STATUS.green.color, title: 'B dans la zone de retour.', text: `Retour depuis B ${fmtMinutes(retB)} ≤ seuil ${fmtMinutes(thresholdMin)} (autonomie ${s.params.autonomy} − réserve ${s.params.reserve} − aller ${fmtMinutes(aller)} − observation ${s.params.observation}).` }
+          : { color: STATUS.amber.color, title: 'B hors de la zone de retour.', text: `Retour depuis B ${fmtMinutes(retB)} > seuil ${fmtMinutes(thresholdMin)} : la marge est sous la réserve.` }} />
       )}
     </>
   );

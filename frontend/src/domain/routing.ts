@@ -5,6 +5,7 @@
  * - `astar` : itinéraire de moindre coût entre deux cellules (heuristique admissible : distance × coût minimal 1) ;
  * - `costField` : coût minimal depuis une cellule vers toutes les autres (Dijkstra), pour la zone de retour.
  * Les coûts étant symétriques, le retour B → A a le même coût que l'aller A → B au moindre coût.
+ * `blocked` (facultatif) : cellules rendues infranchissables (obstacle) ; la cellule de départ reste permise.
  */
 import { isPassable, type TerrainGrid } from './terrain';
 
@@ -56,13 +57,13 @@ class MinHeap {
 
 const cellCost = (g: TerrainGrid, i: number, mode: CostMode) => (mode === 'uniform' ? 1 : g.cost[i]);
 
-function* neighbours(g: TerrainGrid, i: number): Generator<[number, number]> {
+function* neighbours(g: TerrainGrid, i: number, blocked?: Uint8Array): Generator<[number, number]> {
   const r = Math.floor(i / g.width), c = i % g.width;
   for (const [dr, dc, len] of STEPS) {
     const rr = r + dr, cc = c + dc;
     if (rr < 0 || cc < 0 || rr >= g.height || cc >= g.width) continue;
     const j = rr * g.width + cc;
-    if (isPassable(g, j)) yield [j, len];
+    if (isPassable(g, j) && !blocked?.[j]) yield [j, len];
   }
 }
 
@@ -72,8 +73,8 @@ export interface RouteResult {
 }
 
 /** Itinéraire de moindre coût ; null si départ / arrivée interdits ou inaccessibles. */
-export function astar(g: TerrainGrid, start: number, goal: number, mode: CostMode = 'cost'): RouteResult | null {
-  if (!isPassable(g, start) || !isPassable(g, goal)) return null;
+export function astar(g: TerrainGrid, start: number, goal: number, mode: CostMode = 'cost', blocked?: Uint8Array): RouteResult | null {
+  if (!isPassable(g, start) || !isPassable(g, goal) || blocked?.[goal]) return null;
   const n = g.width * g.height;
   const gScore = new Float64Array(n).fill(Infinity);
   const from = new Int32Array(n).fill(-1);
@@ -89,7 +90,7 @@ export function astar(g: TerrainGrid, start: number, goal: number, mode: CostMod
     if (u === goal) break;
     closed[u] = 1;
     const cu = cellCost(g, u, mode);
-    for (const [v, len] of neighbours(g, u)) {
+    for (const [v, len] of neighbours(g, u, blocked)) {
       if (closed[v]) continue;
       const tentative = gScore[u] + ((cu + cellCost(g, v, mode)) / 2) * len * g.cell_m;
       if (tentative < gScore[v]) {
@@ -106,7 +107,7 @@ export function astar(g: TerrainGrid, start: number, goal: number, mode: CostMod
 }
 
 /** Coût minimal (m de plat) depuis `start` vers chaque cellule ; Infinity si inaccessible. */
-export function costField(g: TerrainGrid, start: number): Float64Array {
+export function costField(g: TerrainGrid, start: number, blocked?: Uint8Array): Float64Array {
   const n = g.width * g.height;
   const dist = new Float64Array(n).fill(Infinity);
   if (!isPassable(g, start)) return dist;
@@ -117,7 +118,7 @@ export function costField(g: TerrainGrid, start: number): Float64Array {
     const [d, u] = heap.pop();
     if (d > dist[u]) continue;
     const cu = g.cost[u];
-    for (const [v, len] of neighbours(g, u)) {
+    for (const [v, len] of neighbours(g, u, blocked)) {
       const nd = d + ((cu + g.cost[v]) / 2) * len * g.cell_m;
       if (nd < dist[v]) {
         dist[v] = nd;

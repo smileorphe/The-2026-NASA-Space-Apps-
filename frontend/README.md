@@ -18,7 +18,7 @@ Pour la démo, ouvrir l’Habitat puis **Tablette** et **Casque** depuis le sél
 | `/habitat/supervision` | Supervision : horloge, décisions, imprévus, journal |
 | `/habitat/bilan` | Bilan + export JSON |
 | `/tablette` | Carnet d’exploration (1024×768) |
-| `/casque` | HUD (1280×720, plein écran) |
+| `/casque` | vue 3D du terrain + HUD (1280×720, plein écran) |
 
 ## Organisation
 
@@ -90,7 +90,7 @@ Couches actuelles, de bas en haut. Relevés du 2026-11-15, vérifiés par `src/m
 
 | Couche | Niveaux | Zone couverte | Dossier |
 |---|---|---|---|
-| HiRISE | 11–15 | tracé aller + détour + 500 m | `public/tiles/hirise/` (106 tuiles) |
+| HiRISE | 11–15 | tracé aller + 500 m | `public/tiles/hirise/` (106 tuiles) |
 | CTX | 0–10 | toute l’emprise navigable (mosaïque HiRISE) | `public/tiles/ctx/` (23 tuiles) |
 | MOLA | 0–7 | toute l’emprise navigable | `public/tiles/mola/` (9 tuiles) |
 
@@ -110,7 +110,7 @@ npm run tiles -- --layer ctx --clean    # idem pour une seule couche
   - Pour déclarer une nouvelle anomalie, l’ajouter à `knownAnomalies` avec la tuile (`niveau/ligne/colonne`), le message d’erreur attendu et la raison pour laquelle elle est sans effet sur la carte.
 
 **Quand relancer `npm run tiles`, puis committer `public/tiles/` :**
-- le tracé change (`route_aller.geojson` ou `route_detour.geojson`, en particulier quand le point A sera fixé au Scope & Data Gate) : la zone HiRISE en dépend ;
+- le tracé change (`route_aller.geojson`, en particulier quand le point A sera fixé au Scope & Data Gate) : la zone HiRISE en dépend ;
 - un paramètre WMTS change dans `layers.json` (`url`, `layer`, niveaux, `localTiles`) ou une couche est ajoutée ;
 - le plafond de zoom `MAX_VIEW_LEVEL` (`MissionMap.tsx`) ou les niveaux du script (`PLAN` dans `scripts/fetch-tiles.mjs`) changent ;
 - un `manifest.json` signale des tuiles invalides (serveur indisponible au moment du téléchargement).
@@ -137,30 +137,64 @@ En développement, une tuile absente du cache est servie par Vite sous forme de 
 
 | Fichier | Contenu | Utilisé par |
 |---|---|---|
-| `route_aller.geojson` · `route_detour.geojson` | tracé A → W1–W3 → B et détour (lon/lat) ; unité géologique et statut de chaque point | simulation, carte, fiche du point B |
+| `route_aller.geojson` | tracé A → W1–W3 → B (lon/lat) ; unité géologique et statut de chaque point | simulation, carte, fiche du point B |
 | `route_analysis.json` | distance, dénivelé, profil, pente maximale par segment (spec §6) | caractéristiques, profils, couleurs des segments, pente courante |
 | `public/tiles/slope/` | tuiles de pente (DTM 5 m) | couche « Pentes » |
 | `crism_regions.geojson` | régions CRISM légendées (Zastrow & Glotch 2021) | couche « Régions CRISM », classe du point B |
 | `crism_footprint_040ff.geojson` | contour de l’observation 040ff, sans classes | couche « Emprise CRISM » |
 | `geology.geojson` | unités, fronts de delta, cratères, ellipse Mars 2020 (USGS SIM 3464) | couche « Géologie » |
-| `routes_computed.geojson` · `return_zone.geojson` | itinéraires plus court et moindre coût ; zone de retour | couches et « Comparaison des itinéraires » |
+| `routes_computed.geojson` | statistiques du tracé de mission de référence (sable) | « Comparaison des itinéraires » |
+| `scenarios.json` | tempête fictive (l’obstacle est recalculé, voir plus bas) | carte « Imprévu » |
 
 **Outils de terrain (écran Préparation).** Ils fonctionnent entièrement dans le navigateur, sur les grilles de `public/data/terrain/` chargées à la demande (≈ 4,7 Mo) :
 - **Inspecteur :** au clic, il donne l’altitude, la pente, l’unité géologique, la classe CRISM, l’appartenance à la zone de retour et le temps de retour, chaque valeur avec son étiquette de provenance (`domain/inspect.ts`).
 - **Choix de B :** au clic (mode « Choisir B ») ou depuis la liste des sites, il calcule l’itinéraire de moindre coût A → B avec l’A* (`domain/routing.ts`, même coût que le pipeline, testé à 1 % près) ; le retour suit le même chemin, au même coût.
   - Marge et statut passent par `domain/autonomy.ts`. Si la marge passe sous la réserve, le choix est refusé, la marge résultante est affichée et l’itinéraire apparaît en rouge.
-  - Le plan accepté (`domain/plan.ts`) est stocké dans l’état de mission et partagé avec la tablette et le casque. Le scénario « obstacle » n’existe que pour le tracé de référence.
-- **Sites candidats :** régions « Carbonates marginaux » situées dans la zone de retour, triées par temps de retour.
+  - Le plan accepté (`domain/plan.ts`) est stocké dans l’état de mission et partagé avec la tablette et le casque.
+- **Sites candidats :** régions « Carbonates marginaux » voisines fusionnées (cellules MC à au plus une cellule d’écart), d’au moins `SITE_MIN_AREA_M2` = 5 000 m² (`domain/inspect.ts`), dans la zone de retour ; les 10 premiers par temps de retour, avec surface et marge, puis « Voir tout ».
+- **Couches en direct pour le B courant :** la zone de retour est un raster calculé dans le navigateur à partir du champ de coût depuis A, au seuil courant (autonomie − réserve − (aller + observation)) ; la comparaison des itinéraires (plus court = distance seule, moindre coût) est recalculée par A*. Un test vérifie que la zone du navigateur correspond à `return_zone.geojson` du pipeline pour le B de référence (B dedans, surface à 2 % près).
 - **Survol lié :** survoler le profil place un repère sur la carte, et longer le tracé sur la carte place un repère sur le profil.
 
 - **Analyse du tracé :** `data.ts` appelle d’abord `GET ${VITE_API_URL ?? '/api'}/route/analysis` (proxy Vite vers `localhost:8000`), avec le contrat de la spec §6. S’il échoue, il lit `route_analysis.json`. Le tableau de provenance indique la source réellement utilisée.
 - **Fichiers facultatifs :** les couches issues de la chaîne de traitement le sont ; si un fichier manque, la couche disparaît et l’application fonctionne avec le tracé GeoJSON seul.
-- **Durées :** uniquement les coûts de `route_analysis.json` divisés par la vitesse (`domain/autonomy.ts`). Le retour depuis B suit l’itinéraire de moindre coût B → A ; les options d’imprévu sont calculées à partir de ces coûts (`optionPlan`).
+- **Durées :** uniquement les coûts de `route_analysis.json` divisés par la vitesse (`domain/autonomy.ts`). Le retour depuis B suit l’itinéraire de moindre coût B → A ; les options de la tempête sont calculées à partir de ces coûts (`optionPlan`).
+
+**Carte.** Le bouton « Plein écran » (à droite des couches) affiche la carte et sa barre de couches sur tout l’écran ; Échap ou « Quitter le plein écran » revient à la page. Disponible partout où la carte apparaît (Préparation, Supervision, Bilan).
+
+**Supervision et bilan.**
+- **Obstacle recalculé** (`domain/obstacle.ts`, remplace l’ancien détour prédéfini) : l’habitat place un obstacle d’un clic sur la carte de Supervision (« Placer un obstacle ») ; la tablette le signale à sa position simulée (« Signaler un obstacle ici »).
+  - Les cellules à moins de `OBSTACLE_RADIUS_M` = 15 m (`domain/mission.ts`) sont bloquées et l’horloge se met en pause.
+  - L’A* propose deux options : contourner et poursuivre vers B (retour B → A contournant aussi), ou rentrer à A. Si l’astronaute est dans la zone bloquée, l’itinéraire recule d’abord sur le trajet parcouru ; ce recul est compté.
+  - Chaque option affiche sa marge ; une option sous la réserve est refusée. Tant que l’habitat n’a pas décidé, le retour par le tracé connu est bloqué (il pourrait traverser l’obstacle).
+  - L’alerte s’affiche dans les trois modes, la décision est inscrite au journal et l’obstacle reste sur la carte jusqu’à la fin de la sortie.
+  - Comme l’A* depuis la position courante est souvent moins coûteux que le tracé dessiné, contourner un obstacle de 15 m peut améliorer la marge : un refus n’apparaît que si la marge est déjà proche de la réserve.
+- **Épingles :** chaque action de la tablette crée une épingle à la position simulée, visible dans Supervision et dans le Bilan ; un clic ouvre le détail (type, heure, texte, provenance Observé).
+- **Curseur de temps** (`components/TimeCursor.tsx`, `momentAt` dans `domain/mission.ts`) : dans Supervision, position, marge, autonomie, journal, obstacles et épingles suivent l’instant choisi (« Direct » revient au présent) ; dans le Bilan, relecture complète de la sortie avec lecture automatique.
 - **Texte carbonates :** affiché sur la fiche du point B et sur la tablette seulement si B est dans une région MC (`crism_class` dans `route_aller.geojson`).
+
+**Vue 3D du casque** (`helmet/HelmetView3D.tsx`, géométrie et caméra dans `domain/scene.ts`).
+- three.js (@react-three/fiber, drei) n’est chargé que sur `/casque` et dans le panneau « Vue casque » de Supervision (`React.lazy`, chunk séparé). Le panneau utilise le même composant.
+- **Terrain :**
+  - grille 5 m, plus le couloir DTM 1 m (±150 m autour du tracé de référence) affiché sur 300 m autour de la caméra ;
+  - anneau d’horizon tiré du DTM CTX 20 m, réduit à 100 m sur ~10 km ;
+  - texture : ortho HiRISE moyennée à 1,5 m, en niveaux de gris, avec une teinte de rendu.
+  
+  Ces fichiers sont produits par `pipeline/scene_export.py` et décrits dans `grid.json` (`datasets` : emprise, cellule, source, résolution).
+- **Caméra :**
+  - placée à la position simulée, 1,7 m au-dessus du sol, regard horizontal vers le prochain point, FOV 70°, synchronisée avec le store ;
+  - sol sous la caméra : couloir 1 m, sinon 5 m, sinon CTX, en interpolation bilinéaire. Un test vérifie l’écart au profil de `route_analysis.json` : 0,5 m au plus (0,35 m mesuré).
+- **Repères :** tracé drapé au sol, balises A, W1–W3 et B, obstacle (cylindre du rayon bloqué), contournement en jaune, retour en rouge pendant l’alerte. Aucun rocher ni détail généré.
+- **Commandes :**
+  - suivi automatique par défaut ; glisser la souris passe en regard libre, et la touche S ou Échap revient au suivi ;
+  - « Relief ×2 » double l’exagération verticale, ce qui est signalé à l’écran (la hauteur des yeux reste 1,7 m) ;
+  - la provenance des données est rappelée en bas de la vue.
+- **Hors ligne :** toutes les données sont locales (`public/data/terrain/`). Aucun composant drei qui charge une ressource distante n’est utilisé : les étiquettes sont dessinées sur un canvas, sans `Text` ni `Html`.
+- `npm run dev` expose `window.__eva3d` (caméra, scène, pose) pour les contrôles automatiques, comme `window.__evaMap`.
 
 ## Limites connues
 
 - Une seule occurrence d’imprévu par sortie (réinitialiser pour rejouer).
+- Vue 3D : le couloir 1 m n’existe que le long du tracé de référence ; pour un B choisi ailleurs, la vue utilise la grille 5 m. L’anneau CTX est recalé verticalement par la médiane des écarts avec le HiRISE (−3,83 m), sans correction locale.
 - Si deux onglets Habitat sont ouverts, les deux font avancer l’horloge : n’en garder qu’un.
 - Synchronisation limitée aux onglets d’un même navigateur (pas de réseau, conforme à la spec).
-- Le fond HiRISE nécessite internet ; hors ligne, la carte affiche seulement les calques vectoriels.
+- Hors ligne, le fond de carte vient du cache local (`public/tiles/`), limité à la zone de mission pour HiRISE.

@@ -23,6 +23,7 @@ import {
   statusOf,
 } from './autonomy';
 import { type XY, dist, distanceAlong, pathLength, pointAt, slicePath, bearing } from './geometry';
+import type { LonLat } from './projection';
 import type { IncidentId, MissionData, ScenarioOption, Waypoint, WaypointId } from '../data';
 import { type CustomPlan, withPlan } from './plan';
 
@@ -42,7 +43,20 @@ export interface LogEntry {
   t: number;
   source: Source;
   text: string;
+  kind?: string; // type d'observation (Photo, Mesure…) pour les épingles
+  pos?: LonLat; // position simulée au moment de l'entrée (observations de la tablette, obstacles)
 }
+
+/** Obstacle signalé pendant la sortie : cellules bloquées dans un rayon donné ; reste sur la carte jusqu'à la fin. */
+export interface Obstacle {
+  id: string;
+  lonlat: LonLat;
+  radiusM: number;
+  t: number;
+  source: Source;
+}
+
+export const OBSTACLE_RADIUS_M = 15;
 
 export interface MissionState {
   phase: 'prep' | 'eva' | 'done';
@@ -51,15 +65,19 @@ export interface MissionState {
   leg: Leg | null;
   retourMin: number; // retour estimé depuis B (min) : itinéraire de moindre coût B → A
   observationExtra: number;
-  incident: null | { id: IncidentId; choice?: string };
+  incident: null | { id: IncidentId; choice?: string; resumeSpeed?: ClockSpeed };
   reached: Partial<Record<WaypointId, number>>; // heure de passage
   objectives: Record<ObjectiveKey, boolean>;
   trail: XY[]; // trajet réellement parcouru
+  trailT: number[]; // heure de chaque point du trajet (curseur de temps, relecture)
+  marginHistory: [number, number][]; // [t, marge] au fil de la sortie
   traveledM: number;
   minMargin: number;
   log: LogEntry[];
   lastMessageToHud?: string;
   plan: CustomPlan | null; // B choisi sur la carte (null = tracé de référence) ; partagé avec les trois modes
+  obstacles: Obstacle[];
+  returnPath: LonLat[] | null; // retour depuis B recalculé (contournement d'obstacle), sinon celui du plan
 }
 
 export type Action =
@@ -67,13 +85,17 @@ export type Action =
   | { type: 'LAUNCH' }
   | { type: 'SET_CLOCK_SPEED'; speed: ClockSpeed }
   | { type: 'TICK'; dt: number }
-  | { type: 'LOG'; source: Source; text: string; objective?: ObjectiveKey }
+  | { type: 'LOG'; source: Source; text: string; objective?: ObjectiveKey; kind?: string }
   | { type: 'EXTEND_OBSERVATION'; minutes: number; source: Source }
   | { type: 'TRIGGER_INCIDENT'; id: IncidentId }
   | { type: 'CHOOSE_OPTION'; optionId: string }
   | { type: 'RETURN_NOW'; source: Source }
   | { type: 'SEND_HUD_MESSAGE'; text: string }
   | { type: 'SET_PLAN'; plan: CustomPlan | null }
+  /** Obstacle placé par l'habitat (lonlat) ou signalé par la tablette à la position actuelle (sans lonlat). */
+  | { type: 'OBSTACLE'; source: Source; lonlat?: LonLat }
+  /** Option calculée par l'habitat (A* sur la grille, domain/obstacle.ts) ; refusée si la marge passe sous la réserve. */
+  | { type: 'CHOOSE_OBSTACLE_OPTION'; kind: 'continue' | 'back'; path: LonLat[]; allerRestant: number; retour: number; returnPath?: LonLat[] }
   | { type: 'RESET' };
 
 /* ------------------------------------------------------------------ */
@@ -118,10 +140,14 @@ export function initialState(params: SimParams = FALLBACK_PARAMS, data: MissionD
     reached: {},
     objectives: { photo: false, observation: false, sample: false },
     trail: [],
+    trailT: [],
+    marginHistory: [],
     traveledM: 0,
     minMargin: data ? plannedMargin(params, planCosts(data)) : 0,
     log: [],
     plan: null,
+    obstacles: [],
+    returnPath: null,
   };
 }
 
@@ -183,7 +209,7 @@ export const marginNow = (s: MissionState, data: MissionData) => Math.round(marg
  */
 export function returnPlan(s: MissionState, data: MissionData): { path: XY[]; duration: number } {
   const p = positionOf(s, data).p;
-  if (s.leg?.kind === 'site') return { path: data.returnPath, duration: s.retourMin };
+  if (s.leg?.kind === 'site') return { path: s.returnPath ? s.returnPath.map(data.projection.toLocal) : data.returnPath, duration: s.retourMin };
   const cost = routeCostAt(data, distanceAlong(data.route, p));
   return { path: [...s.trail, p].reverse(), duration: Math.max(0.5, minutesFor(cost, s.params.speedKmh)) };
 }
@@ -192,30 +218,14 @@ export function returnMargin(s: MissionState, data: MissionData): number {
   return Math.round(s.params.autonomy - s.clock.t - returnPlan(s, data).duration);
 }
 
-/** Tracé restant vers B par le détour : on rejoint le début du détour puis on le suit. */
-function detourPath(s: MissionState, data: MissionData): XY[] {
-  const path = s.leg!.path;
-  const dNow = distanceAlong(path, positionOf(s, data).p);
-  const dStart = distanceAlong(path, data.detour[0]);
-  const lead = dNow < dStart ? slicePath(path, dNow, dStart) : [positionOf(s, data).p];
-  return [...lead, ...data.detour.slice(1)];
-}
-
 /** Durées et tracé d'une option d'imprévu, calculés à partir des coûts (rien n'est écrit dans le scénario). */
 export function optionPlan(s: MissionState, data: MissionData, opt: ScenarioOption) {
   const f = opt.speedFactor ?? 1;
-  const v = s.params.speedKmh;
   const b = budgetOf(s, data);
   const p = positionOf(s, data).p;
   if (opt.kind === 'back') {
     const r = returnPlan(s, data);
     return { allerRestant: 0, retour: r.duration / f, keepObservation: false, path: r.path };
-  }
-  if (opt.kind === 'detour') {
-    const dNow = distanceAlong(data.route, p);
-    const dStart = distanceAlong(data.route, data.detour[0]);
-    const lead = Math.max(0, routeCostAt(data, dStart) - routeCostAt(data, dNow));
-    return { allerRestant: minutesFor(lead + data.analysis.detour.cost_m, v) / f, retour: s.retourMin / f, keepObservation: true, path: detourPath(s, data) };
   }
   const path = s.leg ? slicePath(s.leg.path, distanceAlong(s.leg.path, p), pathLength(s.leg.path)) : data.route;
   return { allerRestant: b.allerRestant / f, retour: s.retourMin / f, keepObservation: true, path };
@@ -320,6 +330,42 @@ export function deriveView(s: MissionState, data: MissionData): View {
   };
 }
 
+/** État de la sortie à l'instant `tau` (curseur de temps, relecture du bilan), reconstitué depuis l'historique. */
+export interface Moment {
+  t: number;
+  position: XY;
+  trail: XY[];
+  margin: number | null;
+  remaining: number; // autonomie restante (min)
+  log: LogEntry[];
+  obstacles: Obstacle[];
+}
+
+export function momentAt(s: MissionState, data: MissionData, tau: number): Moment {
+  const t = Math.max(0, Math.min(tau, s.clock.t));
+  const T = s.trailT;
+  let k = 0;
+  while (k < T.length - 1 && T[k + 1] <= t) k++;
+  let position: XY = s.trail[k] ?? data.route[0];
+  if (t >= s.clock.t) position = positionOf(s, data).p;
+  else if (k < T.length - 1 && T[k + 1] > T[k]) {
+    const f = (t - T[k]) / (T[k + 1] - T[k]);
+    const [a, b] = [s.trail[k], s.trail[k + 1]];
+    position = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+  }
+  let m: number | null = null;
+  for (const [ht, hm] of s.marginHistory) if (ht <= t) m = hm;
+  return {
+    t,
+    position,
+    trail: [...s.trail.slice(0, k + 1), position],
+    margin: m,
+    remaining: s.params.autonomy - t,
+    log: s.log.filter((e) => e.t <= t),
+    obstacles: s.obstacles.filter((o) => o.t <= t),
+  };
+}
+
 /** Heure de passage prévue au plan pour un point : coût cumulé jusqu'au point ÷ vitesse. */
 export function plannedTimeAt(s: MissionState, data: MissionData, w: Waypoint): number {
   return minutesFor(routeCostAt(data, w.d), s.params.speedKmh);
@@ -336,13 +382,20 @@ const addLog = (s: MissionState, source: Source, text: string): MissionState => 
   log: [...s.log, { t: s.clock.t, source, text }],
 });
 
-function startReturn(s: MissionState, data: MissionData, duration?: number): MissionState {
+function startReturn(s: MissionState, data: MissionData, duration?: number, path?: XY[]): MissionState {
   const plan = returnPlan(s, data);
   return {
     ...s,
-    leg: { kind: 'back', startT: s.clock.t, duration: duration ?? plan.duration, path: plan.path },
+    leg: { kind: 'back', startT: s.clock.t, duration: duration ?? plan.duration, path: path ?? plan.path },
     trail: [...s.trail, positionOf(s, data).p],
+    trailT: [...s.trailT, s.clock.t],
   };
+}
+
+/** Titre d'un imprévu (l'obstacle n'est plus un scénario prédéfini : il est placé sur la carte). */
+export function incidentTitle(s: MissionState, data: MissionData): string | null {
+  if (!s.incident) return null;
+  return s.incident.id === 'obstacle' ? 'Obstacle sur l’itinéraire' : (data.scenarios[s.incident.id]?.title ?? 'Imprévu');
 }
 
 function tick(s: MissionState, dt: number, data: MissionData): MissionState {
@@ -372,7 +425,10 @@ function tick(s: MissionState, dt: number, data: MissionData): MissionState {
 
   const last = next.trail[next.trail.length - 1];
   next.traveledM += dist(prev, pos);
-  if (!last || dist(last, pos) >= 10 || ends) next.trail = [...next.trail, pos];
+  if (!last || dist(last, pos) >= 10 || ends) {
+    next.trail = [...next.trail, pos];
+    next.trailT = [...next.trailT, t];
+  }
 
   if (ends && leg.kind === 'out') {
     next = {
@@ -387,7 +443,10 @@ function tick(s: MissionState, dt: number, data: MissionData): MissionState {
     next = addLog(next, 'HABITAT', `Retour à l’habitat A · autonomie ${Math.round(s.params.autonomy - t)} min`);
   }
 
-  next.minMargin = Math.min(next.minMargin, marginNow(next, data));
+  const mNow = marginNow(next, data);
+  next.minMargin = Math.min(next.minMargin, mNow);
+  const lastM = next.marginHistory[next.marginHistory.length - 1];
+  if (!lastM || lastM[1] !== mNow || t - lastM[0] >= 1) next.marginHistory = [...next.marginHistory, [t, mNow]];
   return next;
 }
 
@@ -420,6 +479,8 @@ export function reduce(s: MissionState, a: Action, base: MissionData): MissionSt
         retourMin: retour,
         reached: { A: 0 },
         trail: [data.route[0]],
+        trailT: [0],
+        marginHistory: [[0, m]],
         minMargin: m,
         plan: s.plan, // le B choisi reste celui de la sortie
       };
@@ -434,7 +495,9 @@ export function reduce(s: MissionState, a: Action, base: MissionData): MissionSt
 
     case 'LOG': {
       if (s.phase !== 'eva') return s;
-      const logged = addLog(s, a.source, a.text);
+      // Les observations de la tablette sont géolocalisées à la position simulée
+      const pos = a.source === 'TABLETTE' ? data.projection.toLonLat(positionOf(s, data).p) : undefined;
+      const logged = { ...s, log: [...s.log, { t: s.clock.t, source: a.source, text: a.text, kind: a.kind, pos }] };
       return a.objective ? { ...logged, objectives: { ...logged.objectives, [a.objective]: true } } : logged;
     }
 
@@ -471,6 +534,7 @@ export function reduce(s: MissionState, a: Action, base: MissionData): MissionSt
 
     case 'RETURN_NOW': {
       if (s.phase !== 'eva' || s.leg?.kind === 'back') return s;
+      if (s.incident?.id === 'obstacle' && !s.incident.choice) return s; // décision de l'habitat attendue (options recalculées)
       const m = returnMargin(s, data);
       const text = s.leg?.kind === 'site' ? `Site terminé, retour vers A · marge ${m} min` : `Décision : retour à l’habitat · marge ${m} min`;
       return addLog(startReturn(s, data), a.source, text);
@@ -485,6 +549,34 @@ export function reduce(s: MissionState, a: Action, base: MissionData): MissionSt
       const m = plannedMargin(s.params, planCosts(next));
       if (!isAllowed(m, reserve)) return s; // refus : la marge passerait sous la réserve
       return { ...initialState(s.params, next), plan: a.plan };
+    }
+
+    case 'OBSTACLE': {
+      if (s.phase !== 'eva' || s.leg?.kind !== 'out' || s.incident) return s;
+      const lonlat = a.lonlat ?? data.projection.toLonLat(positionOf(s, data).p);
+      const obstacle: Obstacle = { id: `obs-${s.obstacles.length + 1}`, lonlat, radiusM: OBSTACLE_RADIUS_M, t: s.clock.t, source: a.source };
+      const next: MissionState = {
+        ...s,
+        obstacles: [...s.obstacles, obstacle],
+        incident: { id: 'obstacle', resumeSpeed: s.clock.speed },
+        clock: { ...s.clock, speed: 0 }, // pause : décision de l'habitat attendue
+      };
+      const who = a.source === 'TABLETTE' ? 'signalé par la tablette à la position actuelle' : 'placé par l’habitat';
+      return { ...next, log: [...next.log, { t: s.clock.t, source: a.source, text: `Obstacle ${who} · rayon ${OBSTACLE_RADIUS_M} m bloqué`, kind: 'Obstacle', pos: lonlat }] };
+    }
+
+    case 'CHOOSE_OBSTACLE_OPTION': {
+      if (s.incident?.id !== 'obstacle' || s.incident.choice || s.leg?.kind !== 'out') return s;
+      const b = budgetOf(s, data);
+      const keep = a.kind === 'continue';
+      const m = Math.round(margin({ autonomy: b.autonomy, allerRestant: keep ? a.allerRestant : 0, observation: keep ? b.observation : 0, retour: a.retour }));
+      if (!isAllowed(m, reserve)) return s;
+      const path = a.path.map(data.projection.toLocal);
+      let next: MissionState = { ...s, incident: { ...s.incident, choice: a.kind }, clock: { ...s.clock, speed: s.incident.resumeSpeed || 10 } };
+      next = keep
+        ? { ...next, leg: { kind: 'out', startT: s.clock.t, duration: a.allerRestant, path }, retourMin: a.retour, returnPath: a.returnPath ?? null }
+        : startReturn(next, data, a.retour, path);
+      return addLog(next, 'HABITAT', `Décision : ${keep ? 'contourner l’obstacle et poursuivre vers B' : 'rentrer à l’habitat en évitant l’obstacle'} · marge ${m} min`);
     }
 
     case 'RESET':

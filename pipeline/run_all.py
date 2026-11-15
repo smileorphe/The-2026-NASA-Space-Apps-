@@ -10,8 +10,8 @@ import vectors
 if __name__ == "__main__":
     dtm.main()  # P1 : extrait DTM 5 m + pente
     vectors.main()  # P3/P4 : sable CRISM, emprise CRISM, géologie
-    route.main()  # P0 : tracé A–B et détour (GeoJSON)
+    route.main()  # P0 : tracé A → W1–W3 → B (GeoJSON)
     route_analysis.main()  # P1 : route_analysis.json (échoue si pente > 20°)
     slope_tiles.main()  # P2 : tuiles de pente
     paths.main()  # P5 : itinéraires calculés + zone de retour
-    terrain_export.main()  # grilles altitude / pente / coût pour le routage dans le navigateur
+    terrain_export.main()  # grilles 5 m (routage dans le navigateur) + données de la vue 3D du casque

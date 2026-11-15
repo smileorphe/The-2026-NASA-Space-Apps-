@@ -1,6 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { RouteAnalysis, ReturnZone } from '../data';
+import type { RouteAnalysis } from '../data';
+
+/** Zone de retour du pipeline (paths.py), référence pour les contrôles de cohérence. */
+interface ReturnZone {
+  parameters: { threshold_min: number; threshold_cost_m: number; aller_min: number; autonomy_min: number; reserve_min: number; observation_min: number; speed_kmh: number };
+  features: { properties: { contains_B: boolean; return_min_from_B: number; return_cost_from_B_m: number; area_km2: number } }[];
+}
 import {
   isAllowed,
   latestLeaveB,

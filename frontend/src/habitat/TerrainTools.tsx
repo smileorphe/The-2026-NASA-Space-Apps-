@@ -7,7 +7,7 @@ import { Icon } from '../components/Icon';
 import { ProvenanceTag } from '../components/ProvenanceTag';
 import { cssColor, Notice, type NoticeMsg, STATUS, StatusPill } from '../components/ui';
 import { isAllowed, plannedMargin, statusOf } from '../domain/autonomy';
-import { candidateSites, inspectPoint, type Candidate, type Inspection } from '../domain/inspect';
+import { candidateSites, inspectPoint, SITE_MIN_AREA_M2, type Candidate, type Inspection } from '../domain/inspect';
 import { planCosts } from '../domain/mission';
 import { buildPlan } from '../domain/plan';
 import type { LonLat } from '../domain/projection';
@@ -142,26 +142,33 @@ export function TerrainInspector({ t }: { t: TerrainTools }) {
   );
 }
 
+/** Nombre de sites affichés avant « voir tout ». */
+export const SITES_SHOWN = 10;
+
 export function SiteCandidates({ t }: { t: TerrainTools }) {
+  const [all, setAll] = useState(false);
   if (!t.grid) return <p className="small muted">Chargement des grilles de terrain…</p>;
   if (t.sites.length === 0) return <p className="small muted">Aucune région « Carbonates marginaux » dans la zone de retour avec les paramètres actuels.</p>;
   return (
     <>
       <p className="small muted">
-        {t.sites.length} région{t.sites.length > 1 ? 's' : ''} MC dans la zone de retour (CRISM, Zastrow &amp; Glotch 2021), triées par temps de retour vers A. Marge estimée si B y est placé : aller = retour au moindre coût.
+        {t.sites.length} région{t.sites.length > 1 ? 's' : ''} MC dans la zone de retour (CRISM, Zastrow &amp; Glotch 2021) : régions voisines fusionnées, surface ≥ {SITE_MIN_AREA_M2.toLocaleString('fr-FR')} m², triées par temps de retour vers A. Marge estimée si B y est placé : aller = retour au moindre coût.
       </p>
       <ul className="log" style={{ maxHeight: 300 }}>
-        {t.sites.map((c, k) => (
+        {(all ? t.sites : t.sites.slice(0, SITES_SHOWN)).map((c, k) => (
           <li key={k} style={{ alignItems: 'center' }}>
             <span className="mono muted" style={{ minWidth: 28 }}>{k + 1}</span>
             <span className="grow small">
               retour <span className="mono">{fmtMin(c.returnMin)}</span> · marge <span className="mono" style={{ color: STATUS[statusOf(Math.round(c.marginIfChosen), t.s.params.reserve)].color }}>{Math.round(c.marginIfChosen)} min</span>
-              <span className="muted"> · {Math.round(c.areaM2)} m²</span>
+              <span className="muted"> · {Math.round(c.areaM2).toLocaleString('fr-FR')} m²</span>
             </span>
             <button className="chip" onClick={() => (t.editable ? t.chooseB(c.center) : t.onPick(c.center))}>{t.editable ? 'Choisir' : 'Voir'}</button>
           </li>
         ))}
       </ul>
+      {t.sites.length > SITES_SHOWN && (
+        <button className="chip" onClick={() => setAll((v) => !v)}>{all ? `Afficher les ${SITES_SHOWN} premiers` : `Voir tout (${t.sites.length})`}</button>
+      )}
     </>
   );
 }
@@ -172,7 +179,7 @@ export function CurrentB({ t, margin }: { t: TerrainTools; margin: number }) {
   const sand = plan ? plan.sand_m : t.data.overlays.routes?.mission.sand_m;
   return (
     <div className="row small" style={{ gap: 12 }}>
-      <span className="tag" style={cssColor(plan ? 'var(--accent)' : 'var(--muted)')}>{plan ? 'B choisi sur la carte' : 'B de référence'}</span>
+      <span className="tag" style={cssColor(plan ? 'var(--accent)' : 'var(--muted)')}>{plan ? 'B choisi sur la carte' : 'B initial (pipeline)'}</span>
       <span>Sable sur l’aller : <span className="mono">{sand !== undefined ? `${Math.round(sand)} m` : '—'}</span></span>
       <StatusPill status={statusOf(margin, t.s.params.reserve)} short />
     </div>

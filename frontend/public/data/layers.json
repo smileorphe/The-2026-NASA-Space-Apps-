@@ -147,7 +147,7 @@
     {
       "id": "routes",
       "name": "Itinéraires calculés",
-      "source": "pipeline/paths.py · skimage route_through_array · coût = (1 + α·pente) × facteur sable",
+      "source": "A* dans le navigateur (domain/routing.ts) sur la grille 5 m de pipeline/terrain_export.py · plus court (distance seule) et moindre coût = (1 + α·pente) × facteur sable ; contrôlé contre skimage (pipeline/paths.py, 1 %)",
       "date": "v3",
       "resolution": "5 m",
       "projection": "lon/lat Mars 2000",
@@ -156,7 +156,7 @@
     {
       "id": "return_zone",
       "name": "Zone de retour à pied",
-      "source": "pipeline/paths.py · MCP_Geometric depuis A · seuil = autonomie − réserve − (aller + observation)",
+      "source": "Champ de coût depuis A calculé dans le navigateur (Dijkstra, grille 5 m) · seuil courant = autonomie − réserve − (aller + observation) ; contrôlé contre pipeline/paths.py",
       "date": "v3",
       "resolution": "5 m",
       "projection": "lon/lat Mars 2000",

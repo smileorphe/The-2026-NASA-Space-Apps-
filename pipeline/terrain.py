@@ -129,7 +129,3 @@ def load_route():
            for f in gj["features"] if f["geometry"]["type"] == "Point"}
     return [_to_local.transform(*p) for p in line], pts
 
-
-def load_detour():
-    gj = json.loads((C.FRONT_DATA / "route_detour.geojson").read_text())
-    return [_to_local.transform(*p) for p in gj["features"][0]["geometry"]["coordinates"]]

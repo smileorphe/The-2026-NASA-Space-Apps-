@@ -1,4 +1,4 @@
-"""P0 — Tracé de démonstration : A, W1–W3, B et détour, définis dans le repère local (mètres) puis exportés
+"""P0 — Tracé de démonstration : A, W1–W3 et B, définis dans le repère local (mètres) puis exportés
 en GeoJSON lon/lat Mars 2000 (spec §6). Les contraintes de pente sont vérifiées par route_analysis.py.
 
 Choix (zone de l'équipe data, voir pipeline/README.md) :
@@ -22,9 +22,7 @@ WAYPOINTS = [  # (id, nom, x, y) en mètres, repère config.LOCAL
     ("W3", "W3", -175.0, 1099250.0),
     ("B", "Point B · affleurement carbonaté", -145.0, 1099733.0),
 ]
-# Détour du scénario « obstacle sur W3 → B » : part du tracé aller (25 % de W3 → B) et rejoint B par l'ouest.
-OBSTACLE = (-160.0, 1099491.5)
-DETOUR = [(-167.5, 1099370.75), (-260.0, 1099450.0), (-245.0, 1099640.0), (-145.0, 1099733.0)]
+# L'obstacle n'est plus prédéfini : il est placé pendant la sortie et contourné par A* (frontend/src/domain/obstacle.ts).
 
 
 def main():
@@ -57,10 +55,6 @@ def main():
     (C.FRONT_DATA / "route_aller.geojson").write_text(json.dumps(
         {"type": "FeatureCollection", "name": "route_aller", "note": note, "features": features}, ensure_ascii=False, indent=1) + "\n")
 
-    detour = {"type": "FeatureCollection", "name": "route_detour", "note": note, "features": [{
-        "type": "Feature", "properties": {"id": "route_detour", "obstacle": ll(*OBSTACLE)},
-        "geometry": {"type": "LineString", "coordinates": [ll(x, y) for x, y in DETOUR]}}]}
-    (C.FRONT_DATA / "route_detour.geojson").write_text(json.dumps(detour, ensure_ascii=False, indent=1) + "\n")
     b = WAYPOINTS[-1]
     print(f"Tracé : {len(WAYPOINTS)} points · B : unité {unit_at(b[2], b[3])['symbol']}, classe CRISM {crism_at(b[2], b[3])}")
 

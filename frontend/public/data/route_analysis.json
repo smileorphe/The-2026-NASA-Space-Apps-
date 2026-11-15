@@ -1089,14 +1089,6 @@
    ]
   ]
  },
- "detour": {
-  "cost_m": 686.3,
-  "duration_min": 12.5,
-  "distance_m": 449.0,
-  "elevation_gain_m": 11.7,
-  "elevation_loss_m": 8.5,
-  "max_slope_deg": 11.6
- },
  "defaults": {
   "autonomy_min": 145,
   "speed_kmh": 3.3,

@@ -4,7 +4,7 @@ import { MissionLog } from '../components/MissionLog';
 import { PointBFacts } from '../components/PointB';
 import { cssColor, Notice, type NoticeMsg, STATUS } from '../components/ui';
 import { isAllowed } from '../domain/autonomy';
-import { canExtend, extensionMargin, type ObjectiveKey } from '../domain/mission';
+import { canExtend, extensionMargin, incidentTitle, type ObjectiveKey } from '../domain/mission';
 import { fmtT } from '../format';
 import { dispatch, setRole, useMission } from '../store';
 
@@ -37,7 +37,8 @@ export function Tablet() {
   const title =
     s.phase === 'prep' ? 'Sortie non lancée' : s.phase === 'done' ? 'Sortie terminée' : kind === 'site' ? 'Point B · Affleurement' : kind === 'back' ? 'Retour vers l’habitat A' : `En route vers ${view.next?.id ?? 'B'}`;
 
-  const act = (a: (typeof ACTIONS)[number]) => dispatch({ type: 'LOG', source: 'TABLETTE', text: where ? `${a.text} ${where}` : a.text, objective: a.objective });
+  // Chaque action crée une épingle géolocalisée à la position simulée (journal partagé avec l'habitat)
+  const act = (a: (typeof ACTIONS)[number]) => dispatch({ type: 'LOG', source: 'TABLETTE', text: where ? `${a.text} ${where}` : a.text, objective: a.objective, kind: a.label });
 
   const extend = () => {
     const m = extensionMargin(s, data, EXTEND_MIN);
@@ -50,7 +51,8 @@ export function Tablet() {
   };
 
   const done = TASKS.filter((t) => s.objectives[t.key]).length;
-  const incident = s.incident ? data.scenarios[s.incident.id] : null;
+  const alertTitle = incidentTitle(s, data);
+  const canReport = active && kind === 'out' && !s.incident;
 
   return (
     <div className="tablet">
@@ -69,7 +71,7 @@ export function Tablet() {
           <span style={{ color: 'var(--c)' }}><Icon name="warning" size={28} /></span>
           <div className="grow stack" style={{ gap: 2 }}>
             <strong>
-              {view.alert === 'return' ? `Retour prioritaire · ${incident ? incident.title.charAt(0).toLowerCase() + incident.title.slice(1) : 'réserve dépassée'} · simulé` : `Imprévu simulé · ${incident?.title}`}
+              {view.alert === 'return' ? `Retour prioritaire · ${alertTitle ? alertTitle.charAt(0).toLowerCase() + alertTitle.slice(1) : 'réserve dépassée'} · simulé` : `Imprévu simulé · ${alertTitle}`}
             </strong>
             <span className="small">
               {view.alert === 'return'
@@ -122,8 +124,12 @@ export function Tablet() {
         </section>
       </div>
 
-      <footer>
-        <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={!active || kind === 'back'} onClick={() => dispatch({ type: 'RETURN_NOW', source: 'TABLETTE' })}>
+      <footer className="row" style={{ flexWrap: 'nowrap' }}>
+        <button className="btn btn-lg" style={{ borderColor: 'var(--amber)', color: 'var(--amber)', minHeight: 60 }} disabled={!canReport}
+          onClick={() => dispatch({ type: 'OBSTACLE', source: 'TABLETTE' })}>
+          <Icon name="warning" size={22} /> Signaler un obstacle ici
+        </button>
+        <button className="btn btn-primary btn-lg grow" disabled={!active || kind === 'back' || (s.incident?.id === 'obstacle' && !s.incident.choice)} onClick={() => dispatch({ type: 'RETURN_NOW', source: 'TABLETTE' })}>
           {kind === 'back' ? 'Retour en cours vers l’habitat A' : kind === 'site' ? 'Terminer le site et rentrer' : 'Rentrer à l’habitat'} <Icon name="arrow" size={22} />
         </button>
       </footer>

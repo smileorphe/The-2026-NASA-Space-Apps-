@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { AutonomyChart, ElevationProfile } from '../components/charts';
 import { Icon } from '../components/Icon';
@@ -7,20 +7,33 @@ import { CrismLegend, MissionMap, SlopeLegend } from '../components/MissionMap';
 import { PointBFacts } from '../components/PointB';
 import { Card, cssColor, Notice, type NoticeMsg, Stat, StatusPill, STATUS } from '../components/ui';
 import { isAllowed, plannedDurations, plannedMargin, statusOf } from '../domain/autonomy';
-import { type ClockSpeed, canExtend, extensionMargin, optionMargin, planCosts, plannedTimeAt, returnMargin } from '../domain/mission';
-import type { IncidentId } from '../data';
+import { OBSTACLE_RADIUS_M, type ClockSpeed, canExtend, extensionMargin, incidentTitle, momentAt, optionMargin, planCosts, plannedTimeAt, returnMargin } from '../domain/mission';
+import { obstacleOptions } from '../domain/obstacle';
 import { fmtDeg, fmtDelta, fmtDistance, fmtT } from '../format';
-import { dispatch, useMission, usePresence } from '../store';
+import { TimeCursor } from '../components/TimeCursor';
+import { dispatch, useMission, usePresence, useTerrain } from '../store';
 import { Header } from './HabitatLayout';
 
 const QUICK_MESSAGES = ['Ralentissez sur le front du lobe (W1 → W2)', 'Point B confirmé, bonne observation', 'Préparez le retour', 'Signalez l’état du sol'];
+// Même composant que le mode casque ; three.js chargé à la demande
+const HelmetView3D = lazy(() => import('../helmet/HelmetView3D'));
 const SPEEDS: { v: ClockSpeed; label: string }[] = [{ v: 0, label: 'Pause' }, { v: 1, label: '×1' }, { v: 10, label: '×10' }, { v: 60, label: '×60' }];
 
 export function Supervision() {
   const { s, view, data } = useMission();
   const [msg, setMsg] = useState<NoticeMsg | null>(null);
+  const [placing, setPlacing] = useState(false); // clic sur la carte = placer un obstacle
+  const [atT, setAtT] = useState<number | null>(null); // curseur de temps (null = direct)
+  const [obsMsg, setObsMsg] = useState<NoticeMsg | null>(null);
+  const { grid } = useTerrain();
   const reserve = s.params.reserve;
   const t = s.clock.t;
+  // Options face à l'obstacle (A* sur la grille) ; l'horloge est en pause tant que la décision est attendue
+  const pendingObstacle = s.incident?.id === 'obstacle' && !s.incident.choice;
+  const obsOptions = useMemo(
+    () => (grid && pendingObstacle ? obstacleOptions(grid, data, s) : []),
+    [grid, pendingObstacle, s.obstacles.length, s.clock.t, data, s],
+  );
 
   if (s.phase === 'prep') {
     return (
@@ -71,7 +84,11 @@ export function Supervision() {
     setMsg({ color: STATUS[statusOf(o.margin, reserve)].color, title: 'Accepté.', text: o.accepted });
   };
 
-  const incident = s.incident ? data.scenarios[s.incident.id] : null;
+  const incident = s.incident?.id === 'storm' ? data.scenarios.storm : null;
+  const title = incidentTitle(s, data);
+  const moment = atT === null ? null : momentAt(s, data, atT);
+  const shownMargin = moment ? moment.margin ?? view.margin : view.margin;
+  const canPlace = s.phase === 'eva' && s.leg?.kind === 'out' && !s.incident;
   const legLabel = s.phase === 'done' ? 'Retour à l’habitat effectué' : s.leg?.kind === 'site' ? 'EV1 au point B' : s.leg?.kind === 'back' ? 'EV1 en retour vers A' : `EV1 en route vers ${view.next?.id ?? 'B'}`;
 
   return (
@@ -83,12 +100,12 @@ export function Supervision() {
       <div className="grid">
         <section className="card s12" aria-label={`État de la sortie · ${fmtT(t)}`}>
           <div className="card-head">
-            <h2>État de la sortie · <span className="mono">{fmtT(t)}</span></h2>
-            <StatusPill status={view.status} />
+            <h2>État de la sortie · <span className="mono">{fmtT(moment ? moment.t : t)}</span>{moment && <span className="small muted"> · relecture</span>}</h2>
+            <StatusPill status={statusOf(shownMargin, reserve)} />
           </div>
           <div className="stats">
-            <Stat label="Marge de retour" value={`${view.margin} min`} color={STATUS[view.status].color} sub={`réserve ${reserve} min · simulé`} />
-            <Stat label="Autonomie restante" value={`${Math.round(view.remaining)} min`} sub={`sur ${s.params.autonomy} · simulé`} />
+            <Stat label="Marge de retour" value={`${shownMargin} min`} color={STATUS[statusOf(shownMargin, reserve)].color} sub={`réserve ${reserve} min · simulé`} />
+            <Stat label="Autonomie restante" value={`${Math.round(moment ? moment.remaining : view.remaining)} min`} sub={`sur ${s.params.autonomy} · simulé`} />
             <Stat label="Retour estimé" value={`${Math.round(view.budget.retour)} min`} sub={s.incident?.id === 'storm' ? 'vitesse × 0,6 · simulé' : 'tracé inversé · simulé'} />
             <Stat label="Prochain point" value={view.next ? `${view.next.id} · ${fmtDistance(view.next.distance)}` : '—'} sub={view.next ? `ETA ${fmtT(view.next.id === 'A' ? view.etaA : etaOf(view.next.id))}` : s.leg?.kind === 'site' ? 'au point B' : ''} />
             <Stat label="Écart horaire" value={fmtDelta(drift)} sub={lastReached ? `vs plan · ${lastReached.id} à ${fmtT(s.reached[lastReached.id])}` : 'aucun point franchi'} />
@@ -97,14 +114,17 @@ export function Supervision() {
         </section>
 
         <Card title="Suivi de la sortie" className="s8" extra={<span className="tag" style={cssColor('var(--nav)')}>{s.phase === 'done' ? 'TERMINÉE' : 'EN COURS'}</span>}>
-          {incident && (
+          {title && (
             <div role="alert" className="alert" style={cssColor(s.incident!.id === 'storm' ? 'var(--red)' : 'var(--amber)')}>
               <Icon name="warning" size={24} />
-              <strong>{incident.title}</strong>
-              <span className="small">· événement simulé {s.incident!.choice ? '· décision prise' : '· décision attendue'}</span>
+              <strong>{title}</strong>
+              <span className="small">· simulation {s.incident!.choice ? '· décision prise' : '· décision attendue (horloge en pause)'}</span>
             </div>
           )}
-          <MissionMap height={440} live />
+          {placing && <p className="small" style={{ color: 'var(--amber)' }}>Cliquez sur la carte pour placer l’obstacle (rayon {OBSTACLE_RADIUS_M} m bloqué).</p>}
+          <MissionMap height={440} live atT={atT}
+            onPick={placing ? (p) => { dispatch({ type: 'OBSTACLE', source: 'HABITAT', lonlat: p }); setPlacing(false); } : undefined} />
+          <TimeCursor t={t} value={atT} onChange={setAtT} />
           <div className="stats">
             <Stat label="Parcouru" value={`${fmtDistance(s.traveledM)}`} sub={`aller ${fmtDistance(data.routeLength)}`} />
             <Stat label="Arrivée B" tag="sim" value={view.etaB !== null ? fmtT(view.etaB) : 'annulée'} />
@@ -116,23 +136,55 @@ export function Supervision() {
 
         <Card title="Options de décision" tag="sim" className="s4">
           <p className="small muted">Marge recalculée pour chaque option. Une option qui passe sous la réserve est refusée.</p>
-          {whatIf.map((o) => (
+          {pendingObstacle ? (
+            <Notice msg={{ color: 'var(--amber)', title: 'Obstacle en attente.', text: 'Choisissez dans la carte « Imprévu » : les deux options y sont recalculées en évitant l’obstacle (le tracé connu peut le traverser).' }} />
+          ) : whatIf.map((o) => (
             <OptionButton key={o.key} name={o.name} detail={o.detail} margin={o.margin} reserve={reserve} ok={o.ok} onPick={() => pick(o)} />
           ))}
-          <Notice msg={msg ?? { color: 'var(--muted)', title: 'Plan actuel.', text: `Observation prévue : ${s.params.observation + s.observationExtra} min au point B.` }} />
+          {!pendingObstacle && <Notice msg={msg ?? { color: 'var(--muted)', title: 'Plan actuel.', text: `Observation prévue : ${s.params.observation + s.observationExtra} min au point B.` }} />}
         </Card>
 
-        <Card title="Imprévu" className="s4" extra={<span className="small muted">scénarios JSON</span>}>
-          <div className="row">
-            {(Object.keys(data.scenarios) as IncidentId[]).map((id) => (
-              <button key={id} className="btn" style={{ borderColor: 'var(--amber)', color: 'var(--amber)' }} disabled={!!s.incident || s.leg?.kind !== 'out'}
-                aria-pressed={s.incident?.id === id} onClick={() => dispatch({ type: 'TRIGGER_INCIDENT', id })}>
-                <Icon name="warning" />
-                {id === 'storm' ? 'Tempête (fictive)' : 'Obstacle'}
-              </button>
-            ))}
+        <Card title="Vue casque" className="s12" extra={<span className="small muted">même vue que le mode casque · position simulée</span>}>
+          <div style={{ height: 380 }}>
+            <Suspense fallback={<div className="view3d"><div className="view3d-msg">Chargement de la vue 3D…</div></div>}>
+              <HelmetView3D />
+            </Suspense>
           </div>
-          {incident ? (
+        </Card>
+
+        <Card title="Imprévu" className="s4" extra={<span className="small muted">simulation</span>}>
+          <div className="row">
+            <button className="btn" style={{ borderColor: 'var(--amber)', color: 'var(--amber)' }} disabled={!canPlace} aria-pressed={placing} onClick={() => setPlacing(!placing)}>
+              <Icon name="warning" /> {placing ? 'Cliquez sur la carte…' : 'Placer un obstacle'}
+            </button>
+            {data.scenarios.storm && (
+              <button className="btn" style={{ borderColor: 'var(--amber)', color: 'var(--amber)' }} disabled={!canPlace}
+                aria-pressed={s.incident?.id === 'storm'} onClick={() => dispatch({ type: 'TRIGGER_INCIDENT', id: 'storm' })}>
+                <Icon name="warning" /> Tempête (fictive)
+              </button>
+            )}
+          </div>
+          {s.incident?.id === 'obstacle' ? (
+            pendingObstacle ? (
+              obsOptions.length ? (
+                obsOptions.map((o) => (
+                  <OptionButton key={o.kind} name={o.label} detail={o.detail} margin={o.margin} reserve={reserve} ok={o.ok}
+                    onPick={() => {
+                      if (!o.ok) {
+                        setObsMsg({ color: STATUS.red.color, title: 'Refusé.', text: `${o.label} ferait passer la marge à ${o.margin} min, sous la réserve de ${reserve} min.` });
+                        return;
+                      }
+                      setObsMsg(null);
+                      dispatch({ type: 'CHOOSE_OBSTACLE_OPTION', kind: o.kind, path: o.path, allerRestant: o.allerRestant, retour: o.retour, returnPath: o.returnPath });
+                    }} />
+                ))
+              ) : (
+                <p className="small muted">{grid ? 'Aucun itinéraire ne contourne l’obstacle : rentrer est impossible sans le franchir.' : 'Chargement du terrain pour recalculer les itinéraires…'}</p>
+              )
+            ) : (
+              <p className="small">Décision prise : {s.incident.choice === 'continue' ? 'contournement vers B' : 'retour à l’habitat'}. L’obstacle reste sur la carte.</p>
+            )
+          ) : incident ? (
             incident.options.map((o) => {
               const m = optionMargin(s, data, o);
               const chosen = s.incident?.choice === o.id;
@@ -143,8 +195,9 @@ export function Supervision() {
               );
             })
           ) : (
-            <p className="small muted">Déclenche un événement fictif pendant l’aller : il s’affiche dans les trois modes avec des options recalculées.</p>
+            <p className="small muted">Pendant l’aller : placez un obstacle sur la carte (la tablette peut aussi en signaler un à sa position) ou déclenchez une tempête. L’alerte s’affiche dans les trois modes ; les options sont recalculées par A*.</p>
           )}
+          <Notice msg={obsMsg} />
         </Card>
 
         <Card title="Heures limites" tag="sim" className="s4">
@@ -213,7 +266,7 @@ export function Supervision() {
         </Card>
 
         <Card title="Journal de mission" className="s5">
-          <MissionLog entries={s.log} filterable maxHeight={360} />
+          <MissionLog entries={moment ? moment.log : s.log} filterable maxHeight={360} />
         </Card>
 
         <Card title="Point B" tag="der" className="s12">
