@@ -150,14 +150,67 @@ def test_spectre(client):
 def test_gate_valide_avec_minerals(client):
     g = client.get("/gate").json()
     assert g["checks"]["signature_carbonate_point_b"]["ok"] is True
+    assert g["checks"]["point_b_dans_roi"]["classe"] == "Majority MC"
     assert g["verdict"] == "valide"
+
+
+def test_catalogue_imprevus(client):
+    ids = {i["id"] for i in client.get("/incidents").json()}
+    assert {"tempete_poussiere", "coequipier_blesse", "obstacle", "perte_radio",
+            "panne_foreuse", "surconsommation_oxygene", "fuite_oxygene"} <= ids
+    assert any(i.startswith("solar_particles_") for i in ids)
+
+
+def _eval(client, **kw):
+    return client.post("/incidents/evaluate", json=kw).json()
+
+
+@needs_dtm
+def test_evaluation_retour_immediat(client):
+    sol = next(i["id"] for i in client.get("/incidents").json() if i["id"].startswith("solar_particles_"))
+    r = _eval(client, incident_id=sol, phase="aller", distance_m=600, elapsed_min=15)
+    assert r["decision"] == "RETOUR IMMÉDIAT"
+    assert r["options_retour"] and r["chemin_conseille"]["temps_min"] > 0
+    # demi-tour à 600 m : ~14,4 min à 2,5 km/h
+    demi = next(o for o in r["options_retour"] if o["id"] == "demi_tour_par_l_aller")
+    assert demi["temps_min"] == pytest.approx(600 / 2500 * 60, abs=0.2)
+
+
+@needs_dtm
+def test_blesse_ralentit_et_reduit_la_zone(client):
+    ok = _eval(client, incident_id="panne_foreuse", phase="station", elapsed_min=40)  # ni détour ni ralentissement
+    blesse = _eval(client, incident_id="coequipier_blesse", phase="station", elapsed_min=40)
+    aller = next(o for o in ok["options_retour"] if o["id"] == "retour_par_l_aller")
+    aller_b = next(o for o in blesse["options_retour"] if o["id"] == "retour_par_l_aller")
+    assert aller_b["temps_min"] == pytest.approx(2 * aller["temps_min"], rel=0.02)
+    z = client.get("/return-zone?mode=en_cours&elapsed_min=40").json()["properties"]
+    zb = client.get("/return-zone?mode=en_cours&elapsed_min=40&incident_id=coequipier_blesse").json()["properties"]
+    assert zb["surface_km2"] < z["surface_km2"]
+
+
+@needs_dtm
+def test_evaluation_continuer_et_radio(client):
+    assert _eval(client, incident_id="obstacle", phase="aller", distance_m=300, elapsed_min=8)["decision"] == "CONTINUER"
+    assert _eval(client, incident_id="perte_radio", phase="aller", distance_m=300, elapsed_min=8)["decision"] == "CONTINUER PRUDEMMENT"
+    assert client.post("/incidents/evaluate", json={"incident_id": "obstacle", "phase": "aller",
+                                                    "distance_m": 99999}).status_code == 422
+    assert client.post("/incidents/evaluate", json={"incident_id": "inconnu"}).status_code == 404
+
+
+@needs_dtm
+def test_zone_retour_depart(client):
+    z = client.get("/return-zone").json()
+    p = z["properties"]
+    assert p["limite_retour_min"] == pytest.approx((config.AUTONOMY_MIN - config.RESERVE_MIN - 15) / 2)
+    assert p["points"]["point_b"]["dans_zone"] is True
+    assert z["features"] and z["features"][0]["geometry"]["type"] in ("Polygon", "MultiPolygon")
 
 
 @needs_dtm
 def test_briefing(client):
     b = client.get("/briefing").json()
     assert b["decision"] in ("GO", "GO sous réserve", "NO-GO")
-    assert {"autonomie", "terrain", "meteo", "radiations", "donnees"} <= set(b["checks"])
+    assert {"autonomie", "terrain", "meteo", "radiations", "donnees", "zone_retour"} <= set(b["checks"])
 
 
 @needs_dtm

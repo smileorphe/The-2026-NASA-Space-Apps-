@@ -106,6 +106,16 @@ def build_incident(sep: dict, flare_class: str | None, start: str, end: str) -> 
     strong = flare_class is not None and flare_class.startswith("X")
     return {
         "id": f"solar_particles_{date}",
+        "code_workflow": "D1 (A2 au briefing)",
+        "moments": ["briefing", "aller", "station", "retour"],
+        "effets": {"retour_immediat": True, "facteur_vitesse": 1.0, "facteur_consommation": 1.0,
+                   "detour_m": 0, "delta_observation_min": 0, "chemin_retour": "plus_court",
+                   "delai_decision_min": None},
+        "affichage": {
+            "habitat": "Couche radiations au rouge, carte d'urgence : chemin le plus court vers l'abri et zone de retour.",
+            "tablette": "« Laisser la foreuse : oui » ; garder les échantillons.",
+            "casque": "Bandeau rouge, cap vers l'abri par le chemin le plus court.",
+        },
         "type": "flux_particules_solaires",
         "titre": "Flux de particules solaires" + (f" après une éruption {flare_class}" if flare_class else ""),
         "niveau": "rouge",

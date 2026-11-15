@@ -1,0 +1,38 @@
+{
+  "id": "tempete_poussiere",
+  "code_workflow": "D4 (A1 au briefing)",
+  "type": "meteo",
+  "titre": "Tempête de poussière locale, visibilité réduite",
+  "niveau": "rouge",
+  "moments": [
+    "briefing",
+    "aller",
+    "station",
+    "retour"
+  ],
+  "message": "Un coup de vent soulève la poussière : visibilité de quelques dizaines de mètres. Retour guidé par les balises, sans quitter le chemin connu.",
+  "action_recommandee": "retour_guide",
+  "effets": {
+    "retour_immediat": true,
+    "facteur_vitesse": 0.7,
+    "facteur_consommation": 1.0,
+    "detour_m": 0,
+    "delta_observation_min": 0,
+    "chemin_retour": "connu",
+    "delai_decision_min": null
+  },
+  "affichage": {
+    "habitat": "Alerte météo, position des deux astronautes, temps de retour recalculé.",
+    "tablette": "Consigne : rester à moins de 5 m du binôme, suivre les balises.",
+    "casque": "Navigation aux balises, distance au binôme, bordure rouge."
+  },
+  "simulation": true,
+  "source": {
+    "nom": "Scénario EVA Planner (dossier workflow, partie 3 « Les imprévus »)"
+  },
+  "valeurs_simulees": {
+    "vent_m_s": 18,
+    "visibilite_m": 30
+  },
+  "avertissement": "Valeurs simulées. Les vents réels mesurés par MEDA (/weather) restent sous 12 m/s en moyenne sur 1 minute."
+}

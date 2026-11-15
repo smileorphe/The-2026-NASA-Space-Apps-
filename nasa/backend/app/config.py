@@ -33,6 +33,10 @@ INCIDENTS_DIR = BACKEND_DATA / "incidents"
 MINERALS_NC = Path(_env("MINERALS_NC", str(
     DATA_DIR / "data_models" / "040ff_2cuts_final_standard_tomurray.nc"
 )))
+# Seconde observation CRISM couvrant aussi le point B : sert de confirmation indépendante.
+MINERALS_NC_CONFIRM = Path(_env("MINERALS_NC_CONFIRM", str(
+    DATA_DIR / "data_models" / "05c5e_2cuts_final_standard_tomurray.nc"
+)))
 METEO_SUMMARY = BACKEND_DATA / "meteo" / "meda_summary.json"
 RAD_SUMMARY = BACKEND_DATA / "radiation" / "rad_summary.json"
 

@@ -112,6 +112,25 @@ def maps() -> MineralMaps | None:
     return MineralMaps(config.MINERALS_NC) if config.MINERALS_NC.exists() else None
 
 
+@lru_cache(maxsize=1)
+def confirm_maps() -> MineralMaps | None:
+    p = config.MINERALS_NC_CONFIRM
+    return MineralMaps(p) if p.exists() else None
+
+
+def confirmation(lon: float, lat: float) -> dict | None:
+    """Carbonate au même point dans une seconde observation CRISM (05c5e), si elle le couvre."""
+    mm = confirm_maps()
+    if mm is None:
+        return None
+    try:
+        c = mm.composition(lon, lat)
+    except ValueError:
+        return None
+    return {"observation": mm.path.name.split("_")[0], "carbonate_pct": c["groupes_pct"]["Carbonate"],
+            "carbonate_pct_3x3": c["groupes_pct_moyenne_3x3"]["Carbonate"]}
+
+
 def carbonate_check(lon: float, lat: float) -> dict:
     """Contrôle du Data Gate : carbonate ≥ seuil (moyenne 3x3) au point B."""
     mm = maps()
@@ -126,12 +145,21 @@ def carbonate_check(lon: float, lat: float) -> dict:
     carb = c["groupes_pct"]["Carbonate"]
     phy = c["groupes_pct"]["Phyllosilicate"]
     ok = carb3 is not None and carb3 >= config.CARBONATE_MIN_PCT
+    conf = confirmation(lon, lat)
+    conf_txt = ""
+    if conf and conf["carbonate_pct_3x3"] is not None:
+        agree = conf["carbonate_pct_3x3"] >= config.CARBONATE_MIN_PCT
+        conf_txt = (f" Confirmé par une seconde observation CRISM ({conf['observation']}) : "
+                    f"{conf['carbonate_pct']} %." if agree else
+                    f" Attention : la seconde observation ({conf['observation']}) ne confirme pas "
+                    f"({conf['carbonate_pct']} %).")
     return {
         "ok": ok,
         "detail": (f"Carbonate au point B : {carb} % (moyenne 3×3 : {carb3} %, seuil {config.CARBONATE_MIN_PCT} %) ; "
                    f"argiles : {phy} %. " +
                    ("Signature compatible avec des carbonates." if ok else
-                    "Signature carbonate insuffisante : déplacer le point B.")),
+                    "Signature carbonate insuffisante : déplacer le point B.") + conf_txt),
         "carbonate_pct": carb, "carbonate_pct_3x3": carb3, "seuil_pct": config.CARBONATE_MIN_PCT,
+        "confirmation": conf,
         "source": c["source"]["reference"],
     }

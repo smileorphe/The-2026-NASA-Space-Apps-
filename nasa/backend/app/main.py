@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import autonomy, config, environment, minerals
+from . import autonomy, config, environment, incidents, minerals, return_zone
 from .gate import run_gate
 from .route import Route
 from .terrain import Dtm, route_stats
@@ -281,25 +281,79 @@ def briefing():
     g = run_gate(_route(), state["dtm"], config.ROI_PATH)
     checks["donnees"] = {"statut": {"valide": "vert", "incomplet": "orange"}.get(g["verdict"], "rouge"),
                          "detail": f"Scope & Data Gate : {g['verdict']}"}
+    try:  # règle A4 du workflow : la cible doit être dans la zone de retour à pied
+        z = return_zone.zone_geojson(_route().habitat(), "depart", points={"point_b": _route().point_b()})
+        pb = z["properties"]["points"]["point_b"]
+        checks["zone_retour"] = {
+            "statut": "vert" if pb.get("dans_zone") else "rouge",
+            "detail": (f"Point B dans la zone de retour à pied (retour {pb.get('temps_retour_min')} min, "
+                       f"limite {z['properties']['limite_retour_min']} min)" if pb.get("dans_zone") else
+                       "Point B hors de la zone de retour à pied : alléger, cible plus proche ou rover."),
+        }
+    except Exception as e:  # DTM absent, etc.
+        checks["zone_retour"] = {"statut": "inconnu", "detail": str(e)}
     statuts = [c["statut"] for c in checks.values()]
     decision = "NO-GO" if "rouge" in statuts else "GO" if all(s == "vert" for s in statuts) else "GO sous réserve"
     return {"decision": decision, "checks": checks, "simulated": True}
 
 
-# --- Imprévus (réponses DONKI enregistrées, rejouées hors ligne) -------------
+# --- Imprévus : catalogue, détail, évaluation en situation -------------------
+def _load_incident(incident_id: str) -> dict:
+    try:
+        return incidents.load(incident_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except FileNotFoundError as e:
+        raise HTTPException(404, "Imprévu inconnu") from e
+
+
 @app.get("/incidents")
 def list_incidents():
-    if not config.INCIDENTS_DIR.exists():
-        return []
-    return [{"id": p.stem, "file": p.name} for p in sorted(config.INCIDENTS_DIR.glob("*.json"))]
+    """Catalogue : id, titre, niveau, code du dossier workflow, moments possibles, réel (DONKI) ou scénario."""
+    return incidents.catalogue() if config.INCIDENTS_DIR.exists() else []
 
 
 @app.get("/incidents/{incident_id}")
 def get_incident(incident_id: str):
-    if not incident_id.replace("_", "").replace("-", "").isalnum():
-        raise HTTPException(400, "Identifiant invalide")
-    p = config.INCIDENTS_DIR / f"{incident_id}.json"
-    if not p.exists():
-        raise HTTPException(404, "Imprévu inconnu")
-    with open(p, encoding="utf-8") as f:
-        return json.load(f)
+    return _load_incident(incident_id)
+
+
+class EvaluateIn(BaseModel):
+    incident_id: str
+    phase: str = Field("aller", pattern="^(aller|station|retour)$")
+    distance_m: float = Field(0.0, ge=0, description="Distance parcourue sur la phase en cours (aller ou retour)")
+    elapsed_min: float = Field(0.0, ge=0, description="Temps écoulé depuis la sortie du sas")
+    observation_min: float = Field(15.0, ge=0)
+
+
+@app.post("/incidents/evaluate")
+def evaluate_incident(body: EvaluateIn):
+    """« Je suis ici, il s'est écoulé T min, tel imprévu arrive : que faire ? »
+    Renvoie les options de retour, la marge, le statut, la décision et les messages des 3 écrans."""
+    inc = _load_incident(body.incident_id)
+    aller = _stats("aller")["distance_m"]
+    retour = _stats("retour")["distance_m"] if _route().line("retour") else None
+    try:
+        return incidents.evaluate(inc, body.phase, body.distance_m, body.elapsed_min, _route(),
+                                  aller, retour, body.observation_min)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+
+# --- Zone de retour à pied ----------------------------------------------------
+@app.get("/return-zone")
+def get_return_zone(mode: str = Query("depart", pattern="^(depart|en_cours)$"),
+                    elapsed_min: float = Query(0.0, ge=0),
+                    observation_min: float = Query(15.0, ge=0),
+                    speed_factor: float = Query(1.0, gt=0, le=2),
+                    consumption_factor: float = Query(1.0, gt=0, le=5),
+                    incident_id: str | None = None):
+    """Zone d'où l'on peut encore rentrer à pied avec la réserve (GeoJSON lon/lat).
+    `incident_id` applique les facteurs de l'imprévu (ex. coequipier_blesse : vitesse × 0,5)."""
+    _dtm()
+    if incident_id:
+        eff = {**incidents.DEFAULT_EFFECTS, **_load_incident(incident_id).get("effets", {})}
+        speed_factor, consumption_factor = eff["facteur_vitesse"], eff["facteur_consommation"]
+    r = _route()
+    return return_zone.zone_geojson(r.habitat(), mode, elapsed_min, observation_min, speed_factor,
+                                    consumption_factor, points={"point_b": r.point_b()})

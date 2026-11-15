@@ -1,0 +1,30 @@
+{
+  "id": "panne_foreuse",
+  "code_workflow": "C2",
+  "type": "instrument",
+  "titre": "Panne de la foreuse",
+  "niveau": "orange",
+  "moments": [
+    "station"
+  ],
+  "message": "La foreuse est bloquée. Plan B : prélèvement de surface, mesures au spectromètre, photos rapprochées. Station raccourcie de 5 minutes.",
+  "action_recommandee": "plan_b",
+  "effets": {
+    "retour_immediat": false,
+    "facteur_vitesse": 1.0,
+    "facteur_consommation": 1.0,
+    "detour_m": 0,
+    "delta_observation_min": -5,
+    "chemin_retour": "connu",
+    "delai_decision_min": null
+  },
+  "affichage": {
+    "habitat": "Horaire mis à jour.",
+    "tablette": "Bascule automatique sur la liste de tâches du plan B.",
+    "casque": "Horaire raccourci."
+  },
+  "simulation": true,
+  "source": {
+    "nom": "Scénario EVA Planner (dossier workflow, partie 3 « Les imprévus »)"
+  }
+}

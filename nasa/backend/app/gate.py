@@ -23,11 +23,20 @@ def point_in_roi(lon: float, lat: float, roi_path: Path) -> dict:
     roi = gpd.read_file(roi_path)
     # Le .prj est une projection Mars ; on convertit nous-mêmes le point dans ce système.
     x, y = lonlat_to_crism(lon, lat)
-    inside = bool(roi.geometry.contains(Point(float(x), float(y))).any())
+    hit = roi[roi.geometry.contains(Point(float(x), float(y)))]
+    if hit.empty:
+        return {"ok": False, "classe": None,
+                "detail": "Point B HORS de la ROI carbonates : déplacer le point B."}
+    cls = str(hit.iloc[0].get("Type", "")) if "Type" in hit.columns else ""
+    # Classes du shapefile (champ Type) : Majority MC / Majority MT / Majority sand / Mixture / Other.
+    # « Majority MC » est la classe la plus riche en carbonate dans les cartes d'abondance (médiane 28,5 %) ;
+    # « Majority sand » désigne du sable : on ne vise pas le sable pour un prélèvement de roche.
+    ok = cls in ("Majority MC", "Mixture") or cls == ""
     return {
-        "ok": inside,
-        "detail": "Point B dans la ROI carbonates marginaux (040ff)." if inside
-        else "Point B HORS de la ROI carbonates : déplacer le point B.",
+        "ok": ok,
+        "classe": cls or None,
+        "detail": (f"Point B dans la ROI carbonates marginaux (040ff), classe « {cls} »." if ok else
+                   f"Point B dans la ROI mais sur la classe « {cls} » : viser un polygone « Majority MC »."),
     }
 
 

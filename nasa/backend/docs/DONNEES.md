@@ -20,6 +20,7 @@ ce qu'on produit, comment on a vérifié le résultat, et ses limites.**
 8. [Radiations : RAD](#8-radiations--rad)
 9. [Météo spatiale : DONKI](#9-météo-spatiale--donki)
 10. [Itinéraire : route.geojson](#10-itinéraire--routegeojson)
+10 bis. [Réponses aux questions de l'équipe](#10-bis-réponses-aux-questions-de-léquipe-avant-p0)
 11. [Données présentes mais non traitées](#11-données-présentes-mais-non-traitées)
 12. [Formats des fichiers produits](#12-formats-des-fichiers-produits)
 13. [Outils utilisés](#13-outils-utilisés)
@@ -218,20 +219,38 @@ soleil paraît chaude), et la résolution est de 100 m. C'est un indice qualitat
 | Fichiers | `data/data_roi/marginal_region_040ff.{shp,shx,dbf,prj,cpg,sbn,sbx,shp.xml}` |
 | Source | Zastrow & Glotch (2021), *Distinct Lithologies in Jezero Crater*, GRL ; Zenodo 4699583 |
 | Format | **Shapefile** ESRI, type Polygon |
-| Contenu | **897 polygones** = les pixels CRISM classés « carbonates marginaux » par les auteurs |
+| Contenu | **897 polygones** rectangulaires (≈ 96 × 28 m) couvrant la région marginale de l'observation 040ff |
+| Attributs | `Id` (toujours 0) et **`Type`** : la classe de chaque polygone |
 | Projection | `CRISM_LAT_15_0` (equirectangulaire, parallèle 15°, rayon 3 394 839,8 m) |
 | Emprise | 77,338–77,388°E, 18,524–18,567°N (≈ 2,8 × 2,6 km) |
+| Origine | Créé sous ArcGIS Pro le 22/10/2019 par l'autrice, dans un dossier nommé `arc_jezero\dunes` (métadonnées `.shp.xml`) |
+
+**Les classes du champ `Type`**, croisées avec les cartes d'abondance `data_models` (valeur au centre de chaque polygone) :
+
+| Classe | Polygones | Carbonate médian | Argiles médianes | Lecture |
+|---|---|---|---|---|
+| **Majority MC** | 182 | **28,5 %** | 49 % | la plus carbonatée → **cible** |
+| Mixture | 414 | 16,6 % | 46 % | mélange de classes |
+| Other | 10 | 12,1 % | 52 % | autre |
+| Majority MT | 96 | 6,7 % | 48 % | peu carbonatée |
+| Majority sand | 195 | 3,9 % | 39 % | sable (dunes) : à éviter pour un prélèvement de roche |
+
+⚠️ **La signification exacte de « MC » et « MT », et la règle de « Majority »**, ne sont écrites nulle part dans les
+fichiers fournis. Les chiffres ci-dessus montrent que MC est la classe riche en carbonate. Une hypothèse plausible
+est « marginal carbonate », mais **elle n'est pas confirmée** : il faut la vérifier dans l'article de Zastrow & Glotch
+(2021) et ses données supplémentaires avant de l'écrire dans le pitch.
 
 ### Traitement (`app/gate.py`)
 
 1. Lecture avec **geopandas** (moteur pyogrio).
 2. Le point B (degrés) est converti **à la main** dans `CRISM_LAT_15_0`, avec le bon rayon.
-3. Test d'inclusion avec **shapely** : `contains` sur les 897 polygones.
+3. Test d'inclusion avec **shapely** : `contains` sur les 897 polygones, puis lecture de la **classe** du polygone touché.
+4. Accepté si la classe est « Majority MC » ou « Mixture » ; refusé sur « sand », « MT » ou « Other ».
 
-**Résultat** : point B **dans** la zone carbonates. La ROI a aussi servi à **placer** le point B, dans un amas dense
-de pixels, à environ 1,2 km de l'habitat.
+**Résultat** : point B dans un polygone **« Majority MC »**. La première position (36,6 % dans le pixel CRISM) tombait
+sur un petit polygone « Majority sand » : B a été décalé de 68 m sur le polygone MC voisin.
 
-**Pas encore fait** : afficher cette zone comme couche sur la carte.
+**Pas encore fait** : afficher les classes du shapefile comme couche dans la vue 3D.
 
 ---
 
@@ -426,8 +445,9 @@ Exemple de champs SEP : `sepID`, `eventTime`, `instruments[]`, `linkedEvents[]` 
 3. Choix du SEP lié à l'éruption la plus forte, puis fichier d'imprévu normalisé, en français, marqué
    `"simulation": true`.
 
-**Résultat** : `solar_particles_2024-05-09` (flux du 9 mai 2024, 13:59 UTC). La classe d'éruption est vide car le
-quota `DEMO_KEY` a été épuisé. Relancer avec une clé personnelle et `--refresh`.
+**Résultat** : `solar_particles_2024-05-11` : flux de particules du **11 mai 2024, 02:10 UTC** (GOES, > 100 MeV), lié
+à une **éruption de classe X5.8**. Les 7 autres imprévus du catalogue sont des scénarios du dossier workflow
+(voir DOCUMENTATION.md §9).
 
 ---
 
@@ -439,18 +459,49 @@ quota `DEMO_KEY` a été épuisé. Relancer avec une clé personnelle et `--refr
 | Format | **GeoJSON** `FeatureCollection`, coordonnées `[longitude, latitude]` en degrés Mars 2000 |
 | Objets obligatoires | `Point` rôle `habitat`, `Point` rôle `point_b`, `LineString` rôle `aller` ; facultatifs : `waypoint`, `retour` |
 
-**Placement, version 2** (DTM + cartes d'abondance `data_models`) :
-- **point B** (77,34991°E / 18,55196°N) : amas à **36,6 % de carbonate** (moyenne 3 × 3 pixels ≥ 32 %), dans la ROI,
-  pente locale 5° ;
+**Placement, version 2** (DTM + cartes d'abondance `data_models` + classes de la ROI) :
+- **point B** (77,34957°E / 18,55257°N) : polygone **« Majority MC »**, **36,1 % de carbonate** (moyenne 3 × 3 : 34,2 %),
+  confirmé par l'observation 05c5e (34,2 %) ;
 - **habitat** (77,36708°E / 18,54888°N) : zone de 60 m la plus plate (pente max 1,6°), à 1–1,4 km de B, à plus de
   400 m des bords ;
 - **tracés** : chemin de moindre coût sur une grille de pentes de 10 m (coût = longueur × (1 + (pente/8)²),
   pentes > 15° interdites), simplifié à 12 m ; retour pénalisé près de l'aller pour obtenir un chemin différent.
-  Résultat : aller 1 020 m (pente max 7,2°), retour 1 256 m (8,4°).
+  Résultat : aller 1 042 m (pente max 7,8°), retour 1 281 m (7,6°).
 
 Version 1 abandonnée : la cible n'avait que 8 % de carbonate (53 % d'argiles).
 
 **Validation** au chargement (`app/route.py`) : type, rôles obligatoires, coordonnées dans les bornes.
+
+---
+
+## 10 bis. Réponses aux questions de l'équipe (avant P0)
+
+**1. Que signifient « MT » et « MC », et comment ont été obtenues les classes « Majority » ?**
+Le shapefile ne contient que les noms de classe (`Majority MC`, `Majority MT`, `Majority sand`, `Mixture`, `Other`),
+sans définition ni seuil. Ce qu'on peut affirmer avec les données : MC est la classe la plus carbonatée (28,5 % en
+médiane), sand la moins (3,9 %). « Majority » semble désigner un polygone dominé par une classe, « Mixture » un
+mélange, mais **la méthode et le seuil ne sont pas documentés** dans les fichiers fournis. Action : lire l'article
+(GRL 2021) et ses suppléments, ou écrire à l'autrice. En attendant, ne pas développer les sigles dans le pitch.
+
+**2. Pourquoi seule 040ff a-t-elle des régions ? 047a3 et 05c5e ont-elles été traitées ?**
+Le dépôt Zenodo ne contient une ROI que pour 040ff (`data_roi.zip`). Mais **les trois observations ont été traitées**
+par les auteurs : `data_models` contient les cartes d'abondance de 040ff, 047a3 et 05c5e (plus leurs variantes).
+Sur notre zone : **05c5e couvre le point B (34,2 % de carbonate, confirmation indépendante)** ; 047a3 ne le couvre pas.
+
+**3. Comment les pentes des tuiles ont-elles été calculées ?**
+DTM HiRISE 1 m ; lissage par moyenne 3 × 3 (3 m) ; gradient par différences centrées (`numpy.gradient`, pas de 1 m,
+donc calculé sur 2 m) ; pente = `atan(‖∇z‖)`. Aux zooms faibles, la pyramide garde le **maximum** de chaque bloc
+2 × 2 (une pente forte reste visible). Autres calculs de pente du projet :
+`/route/stats` = pente sur des tronçons de 10 m le long du tracé ; vue 3D (`slope.png`) = même calcul que les
+tuiles + filtre maximum 3 × 3 ; zone de retour = grille de 10 m (moyenne), lissage 2 × 2, gradient sur 10 m.
+
+**4. Où sont la carte de coût, l'itinéraire de 2,18 / 2,29 km et la zone de retour des documents ?**
+Ces chiffres viennent du **scénario de démonstration** du dossier workflow, réalisé sur un terrain simulé (le
+document l'indique : « terrain de démonstration »). Ils n'existent pas dans les vraies données. Ils sont remplacés par :
+- **itinéraire réel** : aller 1 042 m, retour 1 281 m (`route.geojson`, `/route/stats`) ;
+- **carte de coût** : coût = longueur × (1 + (pente/8)²), pentes > 15° interdites, sur une grille de 10 m. Elle a
+  servi à dessiner les tracés mais n'est **pas enregistrée en fichier** (elle peut l'être sur demande) ;
+- **zone de retour** : `GET /return-zone` (42,5 min au départ, 7,6 km² ; point B à 27,1 min).
 
 ---
 

@@ -1,0 +1,53 @@
+{
+  "id": "solar_particles_2024-05-11",
+  "code_workflow": "D1 (A2 au briefing)",
+  "moments": [
+    "briefing",
+    "aller",
+    "station",
+    "retour"
+  ],
+  "effets": {
+    "retour_immediat": true,
+    "facteur_vitesse": 1.0,
+    "facteur_consommation": 1.0,
+    "detour_m": 0,
+    "delta_observation_min": 0,
+    "chemin_retour": "plus_court",
+    "delai_decision_min": null
+  },
+  "affichage": {
+    "habitat": "Couche radiations au rouge, carte d'urgence : chemin le plus court vers l'abri et zone de retour.",
+    "tablette": "« Laisser la foreuse : oui » ; garder les échantillons.",
+    "casque": "Bandeau rouge, cap vers l'abri par le chemin le plus court."
+  },
+  "type": "flux_particules_solaires",
+  "titre": "Flux de particules solaires après une éruption X5.8",
+  "niveau": "rouge",
+  "message": "Flux de particules solaires annoncé. Interrompre la sortie et rejoindre l'habitat ou l'abri le plus proche par le chemin connu.",
+  "action_recommandee": "retour_immediat",
+  "simulation": true,
+  "avertissement": "Événement réel enregistré par la NASA (DONKI), rejoué ici comme scénario de démonstration. Il n'a pas été mesuré à Jezero.",
+  "evenement_reel": {
+    "sepID": "2024-05-11T02:10:00-SEP-001",
+    "eventTime": "2024-05-11T02:10Z",
+    "instruments": [
+      "GOES-P: SEISS >100 MeV"
+    ],
+    "eruption_associee": {
+      "activityID": "2024-05-11T01:10:00-FLR-001",
+      "classe_max_notifiee": "X5.8",
+      "classe_X": true
+    },
+    "link": "https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30714/-1",
+    "alertes": [
+      "https://ccmc.gsfc.nasa.gov/DONKI/view/Alert/30715/1",
+      "https://ccmc.gsfc.nasa.gov/DONKI/view/Alert/30716/1"
+    ]
+  },
+  "source": {
+    "nom": "NASA DONKI (Space Weather Database Of Notifications, Knowledge, Information)",
+    "url": "https://api.nasa.gov/DONKI/SEP?startDate=2024-05-08&endDate=2024-05-15",
+    "recupere_le": "2026-11-15T02:21:50+00:00"
+  }
+}

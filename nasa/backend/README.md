@@ -39,6 +39,8 @@ Documentation interactive : http://127.0.0.1:8000/docs
 | `GET /radiation`, `GET /radiation/eva` | Dose RAD (Curiosity, Gale) et dose estimée de la sortie |
 | `GET /briefing` | Décision GO / GO sous réserve / NO-GO |
 | `GET /minerals/point`, `GET /minerals/spectrum` | Composition minérale et spectre CRISM (par défaut au point B) |
+| `POST /incidents/evaluate` | Imprévu en situation : options de retour, marge, décision, messages des 3 écrans |
+| `GET /return-zone` | Zone de retour à pied (GeoJSON), au départ ou en cours de sortie |
 | `GET /3d` | Vue 3D réaliste (index.html + données réelles de `nasa/assets/`) |
 | `GET /route` | Tracé GeoJSON : habitat (A), waypoints, point B, aller, retour |
 | `GET /route/stats?leg=aller\|retour` | Distance, altitudes, dénivelé ±, pente max/moyenne, durée, profil, segments difficiles |

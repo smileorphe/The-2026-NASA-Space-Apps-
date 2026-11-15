@@ -1,0 +1,31 @@
+{
+  "id": "obstacle",
+  "code_workflow": "B1",
+  "type": "terrain",
+  "titre": "Obstacle imprévu sur le chemin",
+  "niveau": "orange",
+  "moments": [
+    "aller",
+    "retour"
+  ],
+  "message": "Un rocher ou une fissure trop petit pour les images orbitales bloque le chemin. Détour proposé : +68 m.",
+  "action_recommandee": "detour",
+  "effets": {
+    "retour_immediat": false,
+    "facteur_vitesse": 1.0,
+    "facteur_consommation": 1.0,
+    "detour_m": 68,
+    "delta_observation_min": 0,
+    "chemin_retour": "connu",
+    "delai_decision_min": null
+  },
+  "affichage": {
+    "habitat": "L'obstacle est ajouté à la carte pour tout le monde.",
+    "tablette": "Détour affiché en vert, validation d'un geste.",
+    "casque": "Nouvelles balises du détour."
+  },
+  "simulation": true,
+  "source": {
+    "nom": "Scénario EVA Planner (dossier workflow, partie 3 « Les imprévus »)"
+  }
+}

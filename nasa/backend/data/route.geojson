@@ -3,7 +3,7 @@
   "name": "EVA-03 Jezero",
   "metadata": {
     "crs": "Mars 2000 sphère IAU, longitude Est, latitude planétocentrique, degrés",
-    "statut": "Version 2 (15/11/2026) : point B placé sur un amas riche en carbonate (≈ 36 % de carbonate, cartes d'abondance Zastrow & Glotch 2021, data_models) dans la ROI des carbonates marginaux ; habitat sur terrain plat (pente max 1,6°) près du centre de la zone ; tracés choisis par un calcul de moindre pente sur le DTM HiRISE (pente max < 9°).",
+    "statut": "Version 2 (15/11/2026) : point B placé sur un polygone « Majority MC » (carbonate) de la ROI, dans un amas riche en carbonate (≈ 36 %, cartes d'abondance Zastrow & Glotch 2021, data_models) dans la ROI des carbonates marginaux ; habitat sur terrain plat (pente max 1,6°) près du centre de la zone ; tracés choisis par un calcul de moindre pente sur le DTM HiRISE (pente max < 9°).",
     "zone": "3x3 km centrée sur 18.5456°N / 77.3628°E",
     "version_precedente": "Habitat 77.38538/18.52298 et B 77.38035/18.54224 : B abandonné car seulement 8 % de carbonate (53 % d'argiles)."
   },
@@ -30,21 +30,21 @@
         "observation_min": 15,
         "texte_scientifique": "Les données minéralogiques disponibles signalent une signature compatible avec la présence de carbonates dans cette zone. Ces minéraux peuvent renseigner sur d'anciennes interactions avec l'eau et sur l'habitabilité passée. Leur présence ne constitue pas une preuve de vie."
       },
-      "geometry": {"type": "Point", "coordinates": [77.34991, 18.55196]}
+      "geometry": {"type": "Point", "coordinates": [77.34957, 18.55257]}
     },
     {
       "type": "Feature",
       "properties": {"role": "aller", "nom": "Aller A → B"},
       "geometry": {"type": "LineString", "coordinates": [
         [77.36708, 18.54888], [77.36404, 18.54888], [77.36353, 18.54938], [77.36235, 18.54938],
-        [77.36033, 18.55039], [77.35898, 18.55056], [77.35763, 18.55174], [77.34991, 18.55196]
+        [77.36033, 18.55039], [77.35898, 18.55056], [77.35763, 18.55174], [77.34957, 18.55257]
       ]}
     },
     {
       "type": "Feature",
       "properties": {"role": "retour", "nom": "Retour B → A par le sud"},
       "geometry": {"type": "LineString", "coordinates": [
-        [77.34991, 18.55196], [77.34919, 18.55107], [77.35071, 18.55006], [77.35206, 18.55006],
+        [77.34957, 18.55257], [77.34919, 18.55107], [77.35071, 18.55006], [77.35206, 18.55006],
         [77.35290, 18.54938], [77.35577, 18.54921], [77.35678, 18.54854], [77.36168, 18.54820],
         [77.36252, 18.54736], [77.36691, 18.54736], [77.36775, 18.54803], [77.36708, 18.54888]
       ]}

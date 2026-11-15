@@ -37,7 +37,7 @@
   },
   {
     "id": "meteo_spatiale",
-    "nom": "Flux de particules solaires (SEP) du 9 mai 2024",
+    "nom": "Flux de particules solaires (SEP) du 11 mai 2024 (éruption X5.8)",
     "fournisseur": "NASA CCMC DONKI",
     "url": "https://api.nasa.gov/",
     "resolution": "événement",
